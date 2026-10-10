@@ -104,6 +104,11 @@ describe("指摘の検出", () => {
     Object.assign(d.users[0], { certTo: "2026-09-10", contractDate: "2026-09-20" });
     expect(ids(d)).toEqual(expect.arrayContaining(["C16", "C17"]));
   });
+  it("C19 区分支給限度基準額の超過", () => {
+    const d = ds();
+    d.users[0].limitUnits = 1000;
+    expect(ids(d)).toContain("C19");
+  });
   it("C18 報告書の未作成・下書き・未送付", () => {
     const d = ds();
     d.reports = d.reports.filter((r) => r.userId !== "U001");

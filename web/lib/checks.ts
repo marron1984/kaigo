@@ -2,7 +2,7 @@
  * 運営指導で確認されやすい項目の自動チェック。
  * 記録の形式上の整合を確認するもので、書類の有無そのものは自己点検（/self-check）で管理する。
  */
-import { classify } from "./billing";
+import { classify, unitsWithTime } from "./billing";
 import { toMin, weekdayOf } from "./format";
 import { BODY_QUALIFIED, TWO_HOUR_RULE_MIN } from "./master";
 import { activePlan, matchService, monthRange } from "./plan";
@@ -15,7 +15,7 @@ export const CHECKS: CheckDef[] = [
   { id: "C01", group: "記録", title: "実提供時間と計画区分の乖離", detail: "開始・終了時刻と提供分数が一致し、実際の提供時間が計画区分の時間帯から外れていないか（外れが続く場合は計画の見直しが必要）", basis: "所要時間は訪問介護計画に位置付けた標準的な時間で算定し、実績と大きく乖離する場合は計画を見直す" },
   { id: "C02", group: "記録", title: "算定区分・単位数と計画の一致", detail: "記録の算定区分と単位数が、訪問介護計画のサービス区分と一致しているか", basis: "訪問介護計画に基づく算定" },
   { id: "C03", group: "記録", title: "計画に基づかない訪問", detail: "有効な訪問介護計画がない日、または計画にない曜日・時間帯の訪問がないか", basis: "訪問介護計画に基づくサービス提供" },
-  { id: "C04", group: "記録", title: "2時間ルール", detail: "同一利用者への訪問間隔が2時間未満の場合、所要時間を合算しているか", basis: "訪問介護の所要時間の取扱い" },
+  { id: "C04", group: "記録", title: "2時間ルール", detail: "同一利用者への訪問間隔が2時間未満の場合、所要時間を合算しているか（20分未満の身体介護は対象外）", basis: "訪問介護の所要時間の取扱い" },
   { id: "C05", group: "記録", title: "サービス内容と区分の整合", detail: "身体介護の区分なら身体介護、生活援助の区分なら生活援助の内容が記録されているか", basis: "サービスの具体的内容の記録" },
   { id: "C06", group: "記録", title: "特記事項（心身の状況）の記載", detail: "利用者の心身の状況やサービス提供時の様子が具体的に記載されているか", basis: "提供した具体的なサービスの内容等の記録" },
   { id: "C07", group: "記録", title: "利用者確認", detail: "利用者（家族）の確認を得ているか", basis: "サービス提供の記録" },
@@ -29,6 +29,7 @@ export const CHECKS: CheckDef[] = [
   { id: "C15", group: "計画", title: "ケアプランとの前後関係", detail: "訪問介護計画がケアプラン作成後に作成され、計画期間の開始前に同意を得ているか", basis: "居宅サービス計画に沿った訪問介護計画" },
   { id: "C16", group: "利用者", title: "要介護認定の有効期間", detail: "サービス提供日が要介護認定の有効期間内か", basis: "保険給付の対象期間" },
   { id: "C17", group: "利用者", title: "契約・重要事項説明", detail: "最初のサービス提供より前に契約（重要事項の説明・同意）をしているか", basis: "内容及び手続の説明及び同意" },
+  { id: "C19", group: "利用者", title: "区分支給限度基準額", detail: "月の訪問介護の単位数が区分支給限度基準額を超えていないか（訪問看護など他サービスの分は含まない）", basis: "区分支給限度基準額の管理（超過分は利用者の全額負担）" },
   { id: "C18", group: "報告", title: "介護報告書の作成・送付", detail: "サービスを提供した月ごとに、介護報告書を確定しケアマネへ送付しているか", basis: "居宅介護支援事業者等との連携" },
 ];
 
@@ -55,7 +56,9 @@ export function runChecks(ds: Pick<Dataset, "records" | "users" | "staff" | "pla
     else {
       const planned = classify(service.code, service.minutes, service.bodyMinutes);
       if (r.billingCode !== service.code) rec("C02", `計画は ${service.code}、記録の算定区分は ${r.billingCode}`);
-      else if (planned && planned.units !== r.units) rec("C02", `${service.code} の単位数は ${planned.units}、記録は ${r.units}`);
+      // 夜間・早朝・深夜の加算は、計画上のサービス開始時刻で判定する
+      else if (planned && unitsWithTime(planned.units, service.start) !== r.units)
+        rec("C02", `${service.code} の単位数は ${unitsWithTime(planned.units, service.start)}（時間帯の加算を含む）、記録は ${r.units}`);
       const actual = classify(service.code, actualMin, r.bodyMinutes ?? service.bodyMinutes);
       if (!actual) rec("C01", `実提供時間 ${actualMin}分 は算定できる時間に満たない`);
       else if (actual.code !== service.code) rec("C01", `実提供時間 ${actualMin}分 は ${actual.code} 相当（計画は ${service.code}）。乖離が続く場合は計画を見直す`);
@@ -90,6 +93,8 @@ export function runChecks(ds: Pick<Dataset, "records" | "users" | "staff" | "pla
     const s = [...list].sort((a, b) => toMin(a.start) - toMin(b.start));
     for (let i = 1; i < s.length; i++) {
       const gap = toMin(s[i].start) - toMin(s[i - 1].end);
+      // 20分未満の身体介護（身体0）は2時間ルールの対象外
+      if (s[i].billingCode === "身体0" || s[i - 1].billingCode === "身体0") continue;
       if (gap < TWO_HOUR_RULE_MIN) add("C04", "record", s[i].no, `前回訪問（${s[i - 1].no}、${s[i - 1].end}終了）から${gap}分。所要時間の合算が必要`);
     }
   }
@@ -115,6 +120,14 @@ export function runChecks(ds: Pick<Dataset, "records" | "users" | "staff" | "pla
     if (!first) continue;
     if (!u.contractDate) add("C17", "user", u.id, "契約日が登録されていない");
     else if (u.contractDate > first) add("C17", "user", u.id, `契約日（${u.contractDate}）より前にサービスを提供（${first}）`);
+  }
+
+  const unitsByUserMonth = new Map<string, number>();
+  for (const r of ds.records) unitsByUserMonth.set(`${r.userId}|${r.date.slice(0, 7)}`, (unitsByUserMonth.get(`${r.userId}|${r.date.slice(0, 7)}`) ?? 0) + r.units);
+  for (const [key, units] of unitsByUserMonth) {
+    const [userId, month] = key.split("|");
+    const limit = userById.get(userId)?.limitUnits;
+    if (limit && units > limit) add("C19", "user", userId, `${month}：訪問介護 ${units.toLocaleString("ja-JP")}単位が限度額 ${limit.toLocaleString("ja-JP")}単位を ${(units - limit).toLocaleString("ja-JP")}単位超えている`);
   }
 
   const months = new Set(ds.records.map((r) => `${r.userId}|${r.date.slice(0, 7)}`));

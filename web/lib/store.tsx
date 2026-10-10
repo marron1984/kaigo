@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { runChecks, type Finding } from "./checks";
 import { idbDel, idbGet, idbSet } from "./idb";
+import { largeDataset } from "./large/generate";
 import { mockDataset } from "./mock";
 import { localIso } from "./format";
 import { OFFICE } from "./master";
@@ -41,7 +42,7 @@ type Ctx = {
   importRows: <K extends ImportKind>(kind: K, rows: Rows[K], mode: ImportLog["mode"], fileName: string) => void;
   saveReport: (r: CareReport) => void;
   setSelfCheck: (id: string, e: SelfCheckEntry) => void;
-  loadMock: () => void;
+  loadMock: (kind?: "large" | "small") => void;
   clearAll: () => void;
   restore: (d: Dataset) => void;
   setOffice: (o: Office) => void;
@@ -51,7 +52,7 @@ type Ctx = {
 const DataContext = createContext<Ctx | null>(null);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [ds, setDs] = useState<Dataset>(() => mockDataset());
+  const [ds, setDs] = useState<Dataset>(() => largeDataset());
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -85,9 +86,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const saveReport = useCallback((r: CareReport) => commit({ ...ds, reports: [...ds.reports.filter((x) => x.id !== r.id), r] }), [ds, commit]);
   const setSelfCheck = useCallback((id: string, e: SelfCheckEntry) => commit({ ...ds, selfCheck: { ...ds.selfCheck, [id]: e } }), [ds, commit]);
-  const loadMock = useCallback(() => {
+  const loadMock = useCallback((kind: "large" | "small" = "large") => {
     idbDel(KEY).catch(() => {});
-    setDs(mockDataset());
+    setDs(kind === "large" ? largeDataset() : mockDataset());
   }, []);
   const clearAll = useCallback(() => commit(emptyDataset()), [commit]);
   const saveShift = useCallback((sh: ShiftPlan) => commit({ ...ds, shifts: [...ds.shifts.filter((x) => x.month !== sh.month), sh] }), [ds, commit]);

@@ -17,6 +17,8 @@ export type CareUser = {
   cmOffice: string; // 居宅介護支援事業所
   careManager: string; // 担当介護支援専門員
   contractDate: string; // 契約日（重要事項説明・同意）
+  /** 区分支給限度基準額（単位/月） */
+  limitUnits?: number;
   note: string;
 };
 

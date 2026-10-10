@@ -51,3 +51,21 @@ export function unitsOfCode(code: string): number | null {
   if (code === "生活2" || code === "生活3") return UNITS[code];
   return null;
 }
+
+/**
+ * 夜間・早朝・深夜の加算率（訪問介護計画上のサービス開始時刻で判定）。
+ * 早朝 6:00〜8:00・夜間 18:00〜22:00 は25%、深夜 22:00〜6:00 は50%。
+ */
+export function timeRate(start: string): { rate: number; label: string } {
+  const [h, m] = start.split(":").map(Number);
+  const t = h * 60 + m;
+  if (t >= 22 * 60 || t < 6 * 60) return { rate: 1.5, label: "深夜（50%）" };
+  if (t < 8 * 60) return { rate: 1.25, label: "早朝（25%）" };
+  if (t >= 18 * 60) return { rate: 1.25, label: "夜間（25%）" };
+  return { rate: 1, label: "" };
+}
+
+/** 基本単位に時間帯の加算をのせた単位数（1単位未満は四捨五入） */
+export function unitsWithTime(baseUnits: number, start: string): number {
+  return Math.round(baseUnits * timeRate(start).rate);
+}

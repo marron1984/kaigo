@@ -220,6 +220,7 @@ export const USER_FIELDS: Field[] = [
   { key: "cmOffice", label: "居宅介護支援事業所", aliases: ["居宅介護支援事業者", "ケアマネ事業所", "支援事業所"] },
   { key: "careManager", label: "担当ケアマネ", aliases: ["担当介護支援専門員", "介護支援専門員", "ケアマネ", "ケアマネジャー"] },
   { key: "contractDate", label: "契約日", aliases: ["契約年月日", "重要事項説明日"] },
+  { key: "limitUnits", label: "区分支給限度基準額", aliases: ["限度額", "支給限度額", "区分支給限度額", "限度基準額"] },
   { key: "note", label: "備考", aliases: ["特記", "メモ"] },
 ];
 
@@ -243,7 +244,7 @@ export function parseUsers(table: Table): ParseResult<CareUser> {
       id, name: get("name"), kana: get("kana"), sex: sex.startsWith("男") ? "男" : sex.startsWith("女") ? "女" : "",
       birthDate: dateField(get, "birthDate", "生年月日", err), careLevel, certFrom, certTo, insuredNo, insurerNo: z2h(get("insurerNo")),
       burden: get("burden"), cmOffice: get("cmOffice"), careManager: get("careManager"),
-      contractDate: dateField(get, "contractDate", "契約日", err), note: get("note"),
+      contractDate: dateField(get, "contractDate", "契約日", err), limitUnits: num(get("limitUnits")) ?? undefined, note: get("note"),
     };
   });
 }
@@ -506,7 +507,7 @@ export const TEMPLATES: Record<"users" | "plans" | "staff" | "records", { title:
   users: {
     title: "利用者リスト",
     fields: USER_FIELDS,
-    sample: [["U001", "山田 花子", "ヤマダ ハナコ", "女", "昭和17年5月12日", "要介護2", "2026/4/1", "2027/3/31", "0000000001", "27XXXX", "1割", "いいかいご居宅介護支援", "担当A", "2025/4/1", "独居"]],
+    sample: [["U001", "山田 花子", "ヤマダ ハナコ", "女", "昭和17年5月12日", "要介護2", "2026/4/1", "2027/3/31", "0000000001", "27XXXX", "1割", "いいかいご居宅介護支援", "担当A", "2025/4/1", "19705", "独居"]],
   },
   plans: {
     title: "訪問介護計画",

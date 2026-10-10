@@ -1,5 +1,6 @@
 "use client";
 
+import { timeRate } from "@/lib/billing";
 import { dateTime, jpDate, slashDate } from "@/lib/format";
 import { BODY_ITEMS, LEAVE_ITEMS, LIFE_ITEMS } from "@/lib/master";
 import { lookup, useData } from "@/lib/store";
@@ -67,7 +68,7 @@ export function TeressaSheet({ r }: { r: CareRecord }) {
             <td className={L}>計画区分</td>
             <td className={V} colSpan={2}>{r.planCode}</td>
             <td className={L}>単位数</td>
-            <td className={V}>{r.units}単位</td>
+            <td className={V}>{r.units}単位{timeRate(r.start).label && <span className="text-[10px]">（{timeRate(r.start).label}）</span>}</td>
             <td className={L}>派遣人数</td>
             <td className={V} colSpan={2}>{r.helpers}名</td>
           </tr>

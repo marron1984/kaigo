@@ -37,7 +37,7 @@ export function SummaryView({ month: m }: { month?: string }) {
       <h1 className="mb-2 hidden font-bold print:block">利用者別 月間集計（{month && jpMonth(month)}）</h1>
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-sm">
-          <thead><tr>{["ID", "氏名", "要介護度", "負担割合", "回数", "区分内訳", "提供時間", "単位数", "金額（円）"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <thead><tr>{["ID", "氏名", "要介護度", "負担割合", "回数", "区分内訳", "提供時間", "単位数", "限度額", "使用率", "金額（円）"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.u.id}>
@@ -49,6 +49,8 @@ export function SummaryView({ month: m }: { month?: string }) {
                 <td className={`${td} text-xs`}>{r.byCode}</td>
                 <td className={`${td} tabular-nums`}>{hm(r.minutes)}</td>
                 <td className={`${td} text-right tabular-nums`}>{yen(r.units)}</td>
+                <td className={`${td} text-right tabular-nums`}>{r.u.limitUnits ? yen(r.u.limitUnits) : "―"}</td>
+                <td className={`${td} text-right tabular-nums ${r.u.limitUnits && r.units > r.u.limitUnits ? "font-bold text-red-700" : ""}`}>{r.u.limitUnits ? `${Math.round((r.units / r.u.limitUnits) * 100)}%` : "―"}</td>
                 <td className={`${td} text-right tabular-nums`}>{yen(r.amount)}</td>
               </tr>
             ))}
@@ -58,6 +60,7 @@ export function SummaryView({ month: m }: { month?: string }) {
               <td className={td} />
               <td className={`${td} tabular-nums`}>{hm(total("minutes"))}</td>
               <td className={`${td} text-right tabular-nums`}>{yen(total("units"))}</td>
+              <td className={td} colSpan={2} />
               <td className={`${td} text-right tabular-nums`}>{yen(total("amount"))}</td>
             </tr>
           </tbody>

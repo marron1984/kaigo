@@ -163,10 +163,11 @@ export default function ImportPage() {
             <button onClick={backup} className="rounded bg-teal-700 px-3 py-1.5 text-white">バックアップ（JSON）を保存</button>
             <button onClick={() => restoreRef.current?.click()} className="rounded border border-slate-300 px-3 py-1.5">バックアップから復元</button>
             <input ref={restoreRef} type="file" accept=".json" className="hidden" onChange={(e) => e.target.files?.[0] && restore(e.target.files[0])} />
-            <button onClick={() => confirm("取り込んだデータを消して、架空のモックデータに戻します。よろしいですか？") && loadMock()} className="rounded border border-slate-300 px-3 py-1.5">モックデータに戻す</button>
+            <button onClick={() => confirm("今のデータを消して、大規模モック（架空18名・2026年10月・約1,800件）を表示します。よろしいですか？") && loadMock("large")} className="rounded border border-slate-300 px-3 py-1.5">大規模モック（18名・10月）</button>
+            <button onClick={() => confirm("今のデータを消して、小規模モック（架空5名・2026年9月）を表示します。よろしいですか？") && loadMock("small")} className="rounded border border-slate-300 px-3 py-1.5">小規模モック（5名・9月）</button>
             <button onClick={() => confirm("すべてのデータを消します。元に戻せません。よろしいですか？") && clearAll()} className="rounded border border-red-300 px-3 py-1.5 text-red-700">すべて消す</button>
           </div>
-          <p className="mt-2 text-xs text-slate-500">現在のデータ：{ds.source === "mock" ? "架空のモックデータ" : "取り込んだデータ"}</p>
+          <p className="mt-2 text-xs text-slate-500">現在のデータ：{ds.source === "mock" ? `架空のモックデータ（${ds.office.name}）` : "取り込んだデータ"}</p>
         </Card>
         <Card>
           <h2 className="mb-2 font-bold">取り込みの履歴</h2>

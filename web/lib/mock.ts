@@ -2,7 +2,7 @@
  * 実地調査（運営指導）準備用のモックデータ。
  * 利用者・職員・被保険者番号・記録内容はすべて架空。
  */
-import { classify } from "./billing";
+import { classify, unitsWithTime } from "./billing";
 import { fromMin, toMin, weekdayOf, ymd } from "./format";
 import { LEAVE_ITEMS, BODY_ITEMS, LIFE_ITEMS, OFFICE } from "./master";
 import { MOCK_NOTES } from "./mockNotes";
@@ -241,7 +241,7 @@ export function generateRecords(): CareRecord[] {
           minutes,
           bodyMinutes,
           billingCode: bill.code,
-          units: bill.units,
+          units: unitsWithTime(bill.units, p.start),
           body,
           life,
           staffId: staff.id,
