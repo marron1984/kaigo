@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/records", label: "提供記録" },
   { href: "/plans", label: "訪問介護計画" },
   { href: "/reports", label: "介護報告書" },
+  { href: "/shifts", label: "シフト" },
   { href: "/users", label: "利用者" },
   { href: "/staff", label: "職員" },
   { href: "/summary", label: "月間集計" },

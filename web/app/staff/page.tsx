@@ -15,7 +15,7 @@ export default function StaffPage() {
         <table className="w-full text-sm">
           <thead>
             <tr>
-              {["ID", "氏名", "職種", "資格", "身体介護", "担当件数", "うち身体介護", "合計時間", ""].map((h) => (
+              {["ID", "氏名", "職種", "資格", "身体介護", "勤務可能（シフト用）", "担当件数", "うち身体介護", "合計時間", ""].map((h) => (
                 <th key={h} className={th}>{h}</th>
               ))}
             </tr>
@@ -31,6 +31,11 @@ export default function StaffPage() {
                   <td className={td}>{s.role}</td>
                   <td className={td}>{s.qualification}</td>
                   <td className={td}>{BODY_QUALIFIED.includes(s.qualification) ? "可" : "不可"}</td>
+                  <td className={`${td} text-xs`}>
+                    {s.availability ? Object.entries(s.availability).map(([w, rs]) => `${w} ${rs!.map((x) => `${x.from}-${x.to}`).join(",")}`).join("／") : "制約なし"}
+                    {s.maxWeeklyMinutes ? `　週${s.maxWeeklyMinutes / 60}h まで` : ""}
+                    {s.ngUsers?.length ? `　担当しない：${s.ngUsers.join("、")}` : ""}
+                  </td>
                   <td className={`${td} tabular-nums`}>{rs.length}件</td>
                   <td className={`${td} tabular-nums`}>{rs.filter((r) => r.body.length > 0).length}件</td>
                   <td className={`${td} tabular-nums`}>{Math.floor(min / 60)}時間{min % 60}分</td>

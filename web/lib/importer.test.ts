@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCode, parseCSV, parseDateJP, parsePlans, parseRecords, parseStaff, parseTime, parseUsers, parseWeekdays, TEMPLATES, templateCSV } from "./importer";
+import { normalizeCode, parseCSV, parseDateJP, parsePlans, parseRecords, parseStaff, parseRanges, parseTime, parseUsers, parseWeekdays, TEMPLATES, templateCSV } from "./importer";
 
 describe("値の変換", () => {
   it("日付（西暦・和暦・Excel）", () => {
@@ -56,6 +56,16 @@ describe("テンプレートの取り込み", () => {
     const r = parseRecords(table("records"), users, staff);
     expect(r.errors).toEqual([]);
     expect(r.rows[0]).toMatchObject({ userId: "U001", staffId: "S01", minutes: 60, units: 309, userConfirmed: true, supervisorCheckedBy: "S01" });
+  });
+  it("職員の勤務条件", () => {
+    const s = parseStaff(table("staff")).rows;
+    expect(s[0]).toMatchObject({ employment: "常勤", maxWeeklyMinutes: 1200 });
+    expect(s[0].availability?.月).toEqual([{ from: "08:30", to: "17:30" }]);
+    expect(s[0].availability?.土).toBeUndefined();
+    expect(s[1].preferredUsers).toEqual(["U001"]);
+    expect(parseRanges("9:00〜12:00、14:00〜18:00")).toEqual([{ from: "09:00", to: "12:00" }, { from: "14:00", to: "18:00" }]);
+    expect(parseRanges("○")).toEqual([{ from: "07:00", to: "20:00" }]);
+    expect(parseRanges("12:00-9:00")).toBeNull();
   });
   it("見出しの表記ゆれと必須列の不足", () => {
     const r = parseUsers([["利用者番号", "利用者名", "介護度"], ["10", "テスト 太郎", "介護3"]]);

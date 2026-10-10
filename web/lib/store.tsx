@@ -6,7 +6,7 @@ import { idbDel, idbGet, idbSet } from "./idb";
 import { mockDataset } from "./mock";
 import { localIso } from "./format";
 import { OFFICE } from "./master";
-import type { CarePlan, CareRecord, CareReport, CareUser, Dataset, ImportLog, Office, SelfCheckEntry, Staff } from "./types";
+import type { CarePlan, CareRecord, CareReport, CareUser, Dataset, ImportLog, Office, SelfCheckEntry, ShiftPlan, Staff } from "./types";
 
 const KEY = "dataset-v2";
 
@@ -20,7 +20,7 @@ const KEY_OF: { [K in ImportKind]: (x: Rows[K][number]) => string } = {
 };
 
 export function emptyDataset(): Dataset {
-  return { source: "imported", office: { ...OFFICE }, period: { from: "", to: "" }, users: [], plans: [], staff: [], records: [], reports: [], selfCheck: {}, importLogs: [] };
+  return { source: "imported", office: { ...OFFICE }, period: { from: "", to: "" }, users: [], plans: [], staff: [], records: [], reports: [], shifts: [], selfCheck: {}, importLogs: [] };
 }
 
 /** 記録のある月の範囲（記録がなければ今月） */
@@ -45,6 +45,7 @@ type Ctx = {
   clearAll: () => void;
   restore: (d: Dataset) => void;
   setOffice: (o: Office) => void;
+  saveShift: (s: ShiftPlan) => void;
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -55,7 +56,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     idbGet<Dataset>(KEY)
-      .then((saved) => saved && setDs({ ...saved, office: saved.office ?? { ...OFFICE } }))
+      .then((saved) => saved && setDs({ ...saved, office: saved.office ?? { ...OFFICE }, shifts: saved.shifts ?? [] }))
       .catch(() => {})
       .finally(() => setReady(true));
   }, []);
@@ -89,11 +90,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setDs(mockDataset());
   }, []);
   const clearAll = useCallback(() => commit(emptyDataset()), [commit]);
+  const saveShift = useCallback((sh: ShiftPlan) => commit({ ...ds, shifts: [...ds.shifts.filter((x) => x.month !== sh.month), sh] }), [ds, commit]);
   const setOffice = useCallback((o: Office) => commit({ ...ds, office: o }), [ds, commit]);
-  const restore = useCallback((d: Dataset) => commit({ ...emptyDataset(), ...d, source: "imported" }), [commit]);
+  const restore = useCallback((d: Dataset) => commit({ ...emptyDataset(), ...d, shifts: d.shifts ?? [], source: "imported" }), [commit]);
 
   const findings = useMemo(() => runChecks(ds), [ds]);
-  const value = useMemo(() => ({ ds, ready, findings, importRows, saveReport, setSelfCheck, loadMock, clearAll, restore, setOffice }), [ds, ready, findings, importRows, saveReport, setSelfCheck, loadMock, clearAll, restore, setOffice]);
+  const value = useMemo(() => ({ ds, ready, findings, importRows, saveReport, setSelfCheck, loadMock, clearAll, restore, setOffice, saveShift }), [ds, ready, findings, importRows, saveReport, setSelfCheck, loadMock, clearAll, restore, setOffice, saveShift]);
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 

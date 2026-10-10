@@ -52,11 +52,22 @@ export type CarePlan = {
   services: PlanService[];
 };
 
+export type TimeRange = { from: string; to: string }; // HH:MM
+
 export type Staff = {
   id: string;
   name: string;
   qualification: string;
   role: "サービス提供責任者" | "訪問介護員";
+  /** 以下はシフト作成用（未設定なら制約なしとして扱う） */
+  employment?: "常勤" | "非常勤";
+  /** 曜日ごとの勤務可能時間。曜日がない＝その曜日は勤務不可 */
+  availability?: Partial<Record<Weekday, TimeRange[]>>;
+  maxWeeklyMinutes?: number;
+  /** 担当しない利用者（ID または氏名） */
+  ngUsers?: string[];
+  /** 担当を希望する・継続したい利用者（ID または氏名） */
+  preferredUsers?: string[];
 };
 
 export type Vitals = { temp: number | null; bp: string; pulse: number | null };
@@ -131,6 +142,31 @@ export type SelfCheckEntry = { status: "済" | "一部" | "未" | ""; note: stri
 
 export type ImportLog = { at: string; kind: string; fileName: string; rows: number; mode: "追加・更新" | "置き換え" };
 
+/** 1回の訪問予定（計画から展開したもの） */
+export type Visit = {
+  key: string; // `${date}|${userId}|${start}`
+  date: string;
+  userId: string;
+  start: string;
+  end: string;
+  minutes: number;
+  code: string;
+  planId: string;
+  content: string;
+  caution: string;
+};
+
+export type ShiftAssignment = { staffId: string | null; locked: boolean };
+
+/** 月ごとのシフト（訪問の担当割り当て） */
+export type ShiftPlan = {
+  month: string; // YYYY-MM
+  assignments: Record<string, ShiftAssignment>;
+  bufferMinutes: number; // 訪問と訪問の間に空ける移動時間
+  generatedAt: string;
+  updatedAt: string;
+};
+
 export type Office = { corp: string; name: string; officeNo: string };
 
 export type Dataset = {
@@ -142,6 +178,7 @@ export type Dataset = {
   staff: Staff[];
   records: CareRecord[];
   reports: CareReport[];
+  shifts: ShiftPlan[];
   selfCheck: Record<string, SelfCheckEntry>;
   importLogs: ImportLog[];
 };

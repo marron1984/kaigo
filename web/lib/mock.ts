@@ -8,12 +8,14 @@ import { LEAVE_ITEMS, BODY_ITEMS, LIFE_ITEMS, OFFICE } from "./master";
 import { draftReport } from "./report";
 import type { CarePlan, CareRecord, CareReport, CareUser, Dataset, GoalRating, PlanService, Staff, Weekday } from "./types";
 
+const days = (ws: Weekday[], from: string, to: string) => Object.fromEntries(ws.map((w) => [w, [{ from, to }]])) as Staff["availability"];
+
 export const STAFF: Staff[] = [
-  { id: "S01", name: "中村 真理", qualification: "介護福祉士", role: "サービス提供責任者" },
-  { id: "S02", name: "小林 恵", qualification: "初任者研修", role: "訪問介護員" },
-  { id: "S03", name: "加藤 健", qualification: "介護福祉士", role: "訪問介護員" },
-  { id: "S04", name: "伊藤 由美", qualification: "実務者研修", role: "訪問介護員" },
-  { id: "S05", name: "渡辺 翔", qualification: "初任者研修", role: "訪問介護員" },
+  { id: "S01", name: "中村 真理", qualification: "介護福祉士", role: "サービス提供責任者", employment: "常勤", availability: days(["月", "火", "水", "木", "金"], "08:30", "17:30"), maxWeeklyMinutes: 20 * 60 },
+  { id: "S02", name: "小林 恵", qualification: "初任者研修", role: "訪問介護員", employment: "非常勤", availability: { ...days(["月", "水", "金"], "08:30", "13:00"), ...days(["土"], "09:00", "13:00") }, maxWeeklyMinutes: 12 * 60 },
+  { id: "S03", name: "加藤 健", qualification: "介護福祉士", role: "訪問介護員", employment: "常勤", availability: days(["月", "火", "水", "木", "金"], "07:00", "19:00"), maxWeeklyMinutes: 30 * 60 },
+  { id: "S04", name: "伊藤 由美", qualification: "実務者研修", role: "訪問介護員", employment: "非常勤", availability: { ...days(["火", "木"], "09:00", "16:00"), ...days(["月", "水", "金"], "16:00", "19:00") }, maxWeeklyMinutes: 15 * 60, preferredUsers: ["U004"] },
+  { id: "S05", name: "渡辺 翔", qualification: "初任者研修", role: "訪問介護員", employment: "非常勤", availability: days(["火", "水", "木", "金", "土"], "10:00", "16:00"), maxWeeklyMinutes: 15 * 60, preferredUsers: ["U002"], ngUsers: ["U005"] },
 ];
 
 export const USERS: CareUser[] = [
@@ -320,6 +322,7 @@ export function mockDataset(): Dataset {
     staff: STAFF,
     records,
     reports,
+    shifts: [],
     selfCheck: {},
     importLogs: [],
   };

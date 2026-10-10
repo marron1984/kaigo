@@ -254,10 +254,39 @@ export const STAFF_FIELDS: Field[] = [
   { key: "name", label: "氏名", aliases: ["職員名", "名前", "ヘルパー名"], required: true },
   { key: "qualification", label: "資格", aliases: ["保有資格"], required: true },
   { key: "role", label: "職種", aliases: ["役職"] },
+  { key: "employment", label: "雇用形態", aliases: ["勤務形態", "常勤非常勤"] },
+  { key: "mon", label: "月", aliases: ["月曜", "月曜日"] },
+  { key: "tue", label: "火", aliases: ["火曜", "火曜日"] },
+  { key: "wed", label: "水", aliases: ["水曜", "水曜日"] },
+  { key: "thu", label: "木", aliases: ["木曜", "木曜日"] },
+  { key: "fri", label: "金", aliases: ["金曜", "金曜日"] },
+  { key: "sat", label: "土", aliases: ["土曜", "土曜日"] },
+  { key: "sun", label: "日", aliases: ["日曜", "日曜日"] },
+  { key: "maxWeekly", label: "週の上限時間", aliases: ["週上限", "週の訪問上限", "上限時間週"] },
+  { key: "ngUsers", label: "担当しない利用者", aliases: ["NG利用者", "担当不可"] },
+  { key: "preferredUsers", label: "担当希望の利用者", aliases: ["担当利用者", "希望利用者", "固定担当"] },
 ];
 
+const DAY_KEYS: [string, Weekday][] = [["mon", "月"], ["tue", "火"], ["wed", "水"], ["thu", "木"], ["fri", "金"], ["sat", "土"], ["sun", "日"]];
+
+/** 勤務可能時間：9:00-17:00 / 9:00〜12:00,14:00〜18:00 / ○（終日=7:00〜20:00）/ ×・空欄（不可） */
+export function parseRanges(raw: string): { from: string; to: string }[] | null {
+  const s = z2h(raw.trim());
+  if (!s || /^(×|✕|x|-|―|不可|休)$/i.test(s)) return [];
+  if (/^(○|〇|◯|終日|可)$/.test(s)) return [{ from: "07:00", to: "20:00" }];
+  const out: { from: string; to: string }[] = [];
+  for (const part of s.split(/[,，、/／\s]+/).filter(Boolean)) {
+    const m = part.split(/[〜~\-－]/);
+    const from = m.length === 2 ? parseTime(m[0]) : null;
+    const to = m.length === 2 ? parseTime(m[1]) : null;
+    if (!from || !to || from >= to) return null;
+    out.push({ from, to });
+  }
+  return out;
+}
+
 export function parseStaff(table: Table): ParseResult<Staff> {
-  return run(table, STAFF_FIELDS, (get, row, _err, warn) => {
+  return run(table, STAFF_FIELDS, (get, row, err, warn) => {
     const q = get("qualification");
     const qualification = /介護福祉士/.test(q) ? "介護福祉士" : /実務者|基礎研修|ヘルパー1級|1級/.test(q) ? "実務者研修" : /初任者|ヘルパー2級|2級/.test(q) ? "初任者研修" : q;
     if (qualification !== q) warn(`資格「${q}」を「${qualification}」として扱います`);
@@ -266,8 +295,29 @@ export function parseStaff(table: Table): ParseResult<Staff> {
       name: get("name"),
       qualification,
       role: /サ責|サービス提供責任者/.test(get("role")) ? "サービス提供責任者" : "訪問介護員",
+      ...staffShiftFields(get, err),
     };
   });
+}
+
+function staffShiftFields(get: (k: string) => string, err: (m: string) => void): Partial<Staff> {
+  const out: Partial<Staff> = {};
+  const emp = get("employment");
+  if (emp) out.employment = /非常勤|パート/.test(emp) ? "非常勤" : "常勤";
+  if (DAY_KEYS.some(([k]) => get(k))) {
+    const availability: NonNullable<Staff["availability"]> = {};
+    for (const [k, w] of DAY_KEYS) {
+      const r = parseRanges(get(k));
+      if (r === null) err(`${w}曜の勤務可能時間「${get(k)}」を読めません（例：9:00-17:00 / ○ / ×）`);
+      else if (r.length) availability[w] = r;
+    }
+    out.availability = availability;
+  }
+  const h = num(get("maxWeekly"));
+  if (h) out.maxWeeklyMinutes = Math.round(h * 60);
+  if (get("ngUsers")) out.ngUsers = list(get("ngUsers"));
+  if (get("preferredUsers")) out.preferredUsers = list(get("preferredUsers"));
+  return out;
 }
 
 /* ---------- 訪問介護計画（1行＝1サービス枠） ---------- */
@@ -468,7 +518,10 @@ export const TEMPLATES: Record<"users" | "plans" | "staff" | "records", { title:
   staff: {
     title: "職員",
     fields: STAFF_FIELDS,
-    sample: [["S01", "中村 真理", "介護福祉士", "サービス提供責任者"], ["S02", "小林 恵", "初任者研修", "訪問介護員"]],
+    sample: [
+      ["S01", "中村 真理", "介護福祉士", "サービス提供責任者", "常勤", "8:30-17:30", "8:30-17:30", "8:30-17:30", "8:30-17:30", "8:30-17:30", "×", "×", "20", "", ""],
+      ["S02", "小林 恵", "初任者研修", "訪問介護員", "非常勤", "8:30-13:00", "×", "8:30-13:00", "×", "8:30-13:00", "9:00-13:00", "×", "12", "", "U001"],
+    ],
   },
   records: {
     title: "サービス提供記録",
