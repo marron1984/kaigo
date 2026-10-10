@@ -18,7 +18,7 @@ export default function Dashboard() {
   const { ds, findings } = useData();
   const { records, period } = ds;
   const units = records.reduce((s, r) => s + r.units, 0);
-  const amount = records.reduce((s, r) => s + yenOf(r.units, UNIT_PRICE), 0);
+  const amount = yenOf(units, UNIT_PRICE);
   const today = ymd(new Date());
   const soon = addDays(today, 45);
   const alerts = [

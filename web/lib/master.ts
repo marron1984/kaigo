@@ -7,8 +7,8 @@ export const OFFICE = {
   officeNo: "",
 };
 
-/** 大阪市 2級地 訪問介護 円/単位（2027年4月の介護報酬改定で見直し） */
-export const UNIT_PRICE = 11.4;
+/** 大阪市（2級地）訪問介護 円/単位。2024年度改定の地域区分単価（2027年4月の介護報酬改定で見直し） */
+export const UNIT_PRICE = 11.12;
 
 /** 2024年度改定 訪問介護 基本単位 */
 export const UNITS = {

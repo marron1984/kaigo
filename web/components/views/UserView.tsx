@@ -110,7 +110,7 @@ export function UserView({ id, month: m }: { id: string; month?: string }) {
           ))}
           {plans.length === 0 && <li className="text-red-700">計画が登録されていません</li>}
         </ul>
-        <p className="mt-2 text-xs text-slate-500">概算金額 {yen(rs.reduce((s, r) => s + yenOf(r.units, UNIT_PRICE), 0))}円（{jpMonth(month)}）</p>
+        <p className="mt-2 text-xs text-slate-500">概算金額 {yen(yenOf(rs.reduce((s, r) => s + r.units, 0), UNIT_PRICE))}円（{jpMonth(month)}）</p>
       </Card>
     </>
   );

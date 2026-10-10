@@ -22,7 +22,7 @@ export function SummaryView({ month: m }: { month?: string }) {
       for (const r of rs) byCode.set(r.billingCode, (byCode.get(r.billingCode) ?? 0) + 1);
       return {
         u, count: rs.length, minutes: rs.reduce((s, r) => s + r.minutes, 0), units: rs.reduce((s, r) => s + r.units, 0),
-        amount: rs.reduce((s, r) => s + yenOf(r.units, UNIT_PRICE), 0), byCode: [...byCode].map(([c, n]) => `${c}×${n}`).join("、"),
+        amount: yenOf(rs.reduce((s, r) => s + r.units, 0), UNIT_PRICE), byCode: [...byCode].map(([c, n]) => `${c}×${n}`).join("、"),
       };
     })
     .filter((r) => r.count > 0);
@@ -63,7 +63,7 @@ export function SummaryView({ month: m }: { month?: string }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-slate-500">金額＝基本単位×{UNIT_PRICE.toFixed(2)}円（大阪市2級地、1回ごと端数切捨て）。加算・利用者負担は未計上。単価は2027年4月改定で見直し。</p>
+      <p className="mt-2 text-xs text-slate-500">金額＝利用者ごとの合計単位×{UNIT_PRICE.toFixed(2)}円（大阪市2級地、端数切捨て。サービス提供票の別表と同じ計算）。加算・利用者負担は未計上。単価は2027年4月改定で見直し。</p>
     </>
   );
 }

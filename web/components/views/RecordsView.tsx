@@ -31,7 +31,7 @@ export function RecordsView({ f }: { f: Filters }) {
 
   return (
     <>
-      <PageTitle title="サービス提供記録（テレッサ）" sub={`${rs.length}件 / ${yen(units)}単位 / ${yen(rs.reduce((s, r) => s + yenOf(r.units, UNIT_PRICE), 0))}円`}>
+      <PageTitle title="サービス提供記録（テレッサ）" sub={`${rs.length}件 / ${yen(units)}単位 / ${yen(yenOf(rs.reduce((s, r) => s + r.units, 0), UNIT_PRICE))}円`}>
         <ButtonLink href={`/print${qs}`} primary>この条件で印刷（A4・1件1枚）</ButtonLink>
         <button onClick={exportCSV} className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">CSV出力</button>
       </PageTitle>

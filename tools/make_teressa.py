@@ -18,7 +18,7 @@ OFFICE = {
     "事業所番号": "27000000XX（モック）",
     "地域区分": "大阪市（2級地）",
 }
-UNIT_PRICE = 11.40  # 大阪市 2級地 訪問介護 円/単位（2027年4月改定で見直し）
+UNIT_PRICE = 11.12  # 大阪市 2級地 訪問介護 円/単位（2027年4月改定で見直し）
 
 # 2024年度改定の訪問介護 基本単位
 UNITS = {"身体0": 163, "身体1": 244, "身体2": 387, "身体3": 567,
@@ -283,7 +283,7 @@ def sheet_summary(wb, recs):
         cell(ws, f"{col}{t}", f"=SUM({col}2:{col}{t-1})", bold=True, align="center")
     ws[f"G{t}"].number_format = "#,##0"
     fit_a4(ws)
-    cell(ws, f"A{t+2}", "※金額は基本単位×11.40円（端数切捨て、1回ごと）。加算・利用者負担割合は未計上。", border=False, wrap=False)
+    cell(ws, f"A{t+2}", "※記録一覧の金額は1回ごとの参考値。利用者別の合計はサービス提供票の別表と同じく合計単位×11.12円（端数切捨て）で計算すること。加算・利用者負担割合は未計上。", border=False, wrap=False)
 
 def sheet_forms(wb, recs):
     ws = wb.create_sheet("テレッサ（印刷用）")
