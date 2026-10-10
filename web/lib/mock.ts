@@ -5,6 +5,7 @@
 import { classify } from "./billing";
 import { fromMin, toMin, weekdayOf, ymd } from "./format";
 import { LEAVE_ITEMS, BODY_ITEMS, LIFE_ITEMS, OFFICE } from "./master";
+import { MOCK_NOTES } from "./mockNotes";
 import { draftReport } from "./report";
 import type { CarePlan, CareRecord, CareReport, CareUser, Dataset, GoalRating, PlanService, Staff, Weekday } from "./types";
 
@@ -264,6 +265,21 @@ export function generateRecords(): CareRecord[] {
     }
   }
 
+  // 特記事項・サービス内容を、1件ずつ書き分けたモックで置き換える
+  for (const r of records) {
+    const n = MOCK_NOTES[`${r.userId}|${r.date.slice(5)}|${toMin(r.start) < 12 * 60 ? "am" : "pm"}`];
+    if (!n) throw new Error(`モックの特記事項がない：${r.no} ${r.userId} ${r.date} ${r.start}`);
+    r.note = n.text;
+    r.body = [...n.body].sort((a, b) => BODY_ITEMS.indexOf(a) - BODY_ITEMS.indexOf(b));
+    r.life = [...n.life].sort((a, b) => LIFE_ITEMS.indexOf(a) - LIFE_ITEMS.indexOf(b));
+    r.condition = n.condition ?? "良好";
+    r.reported = !!n.report;
+    r.reportTo = n.report ?? "";
+    if (n.meal) r.meal = n.meal;
+    if (n.excretion) r.excretion = n.excretion;
+    if (n.temp !== undefined) r.vitals.temp = n.temp;
+  }
+
   // 監査証跡のサンプル: 記載誤りを理由付きで訂正した記録（サ責確認時に訂正）
   const at = (r: CareRecord) => r.supervisorCheckedAt ?? r.createdAt;
   const r1 = records.filter((r) => r.userId === "U002")[2];
@@ -271,30 +287,67 @@ export function generateRecords(): CareRecord[] {
   const r2 = records.filter((r) => r.userId === "U004" && r.excretion !== "―")[5];
   r2.history.push({ at: at(r2), by: "S01", field: "排泄", before: r2.excretion === "尿○ 便○" ? "尿○ 便×" : "尿○ 便○", after: r2.excretion, reason: "ヘルパーへの聞き取りで記載誤りを確認" });
   const r3 = records.filter((r) => r.userId === "U005")[2];
-  r3.history.push({ at: at(r3), by: "S04", field: "特記事項", before: "様子変わりなし。", after: r3.note, reason: "具体的な状態の記載が不足していたため、サ責の指導により追記" });
+  r3.history.push({ at: at(r3), by: r3.staffId, field: "特記事項", before: "様子変わりなし。", after: r3.note, reason: "具体的な状態の記載が不足していたため、サ責の指導により追記" });
   return records;
 }
 
-const REPORT_TEXT: Record<string, { comments: string[]; issues: string; policy: string; rating: GoalRating[] }> = {
+const REPORT_TEXT: Record<string, { comments: string[]; condition: string; summary?: string; issues: string; policy: string; rating: GoalRating[]; planChange?: CareReport["planChange"] }> = {
   U001: {
-    comments: ["膝の痛みの訴えは時々あるが、入浴は見守りで継続できている。", "浴槽の出入りは手すり使用で安定。痛みのある日は足浴に変更して対応した。", "洗濯物干しを本人と一緒に行えている。"],
-    issues: "右膝の痛みの訴えが月数回ある。", policy: "10月からの新計画に沿って、洗濯物干しを本人主体で行えるよう見守りを継続する。", rating: ["継続", "一部達成", "達成"],
+    condition: "9/7と9/21に右膝の痛みが再燃し、立ち上がりに時間を要した。9/25に整形外科を受診し膝関節に注射。その後は痛みが軽減し、9/30に入浴を再開した。食事・睡眠は良好で、衣替えなど季節の準備にも意欲がある。",
+    summary: "計画上の予定13回に対し13回実施。うち4回は右膝の痛み・受診後の入浴制限のため入浴を足浴に変更し、1回は本人希望（美容院帰り）で入浴を見送った。",
+    comments: [
+      "右膝の痛みが9/7と9/21に再燃したが、整形外科で膝関節に注射を受けてからは軽減し、9/30に入浴を再開できた。",
+      "痛みのある日は足浴やシャワー浴に切り替え、転倒なく経過した。見守りでの入浴は概ね安全に行えている。",
+      "洗濯物干し・たたみ、モップがけを本人と分担して継続できている。",
+    ],
+    issues: "天候により右膝の痛みが再燃しやすい。入浴を足浴に切り替える判断基準を共有したい。",
+    policy: "10月からの新計画に沿って、洗濯物干しを本人主体で行えるよう見守りを継続する。",
+    rating: ["継続", "一部達成", "達成"],
   },
   U002: {
-    comments: ["夫婦での在宅生活を継続できている。", "移乗は左側からの介助で安全に実施できている。転倒なし。", "週4回の入浴を実施。仙骨部の軽度発赤は早期に共有し、悪化していない。"],
-    issues: "仙骨部の発赤（軽度）。体位変換の声かけを家族に依頼済み。", policy: "皮膚状態の観察を継続し、変化時は速やかに報告する。", rating: ["継続", "達成", "一部達成"],
+    condition: "9/8に仙骨部の発赤（約2cm）を発見し、保護と除圧で9/15に消失した。9/12に微熱、9/22に咳があったがいずれも数日で回復。9/17前後に便秘があり整腸剤が追加された。立位保持は30秒可能となり、移乗は安定している。",
+    summary: "計画上の予定17回に対し17回実施。微熱（9/12）・本人希望（9/15）・咳（9/22）・通院（9/26）の4回は入浴を行わず、排泄・更衣・移乗の介助を実施した。",
+    planChange: "要検討",
+    comments: [
+      "在宅生活は継続できているが、奥様の夜間介助による睡眠不足と腰痛があり、介護負担が増している。",
+      "移乗は左側からの介助で安定。立位保持30秒が可能となり、転倒はない。",
+      "仙骨部の発赤（9/8発見）は除圧と保護で9/15に消失。微熱・咳・通院の日を除き入浴を実施した。",
+    ],
+    issues: "奥様の腰痛と睡眠不足（ケアマネへ報告済み）。便秘傾向（整腸剤が追加処方）。",
+    policy: "皮膚と排便の状況を観察し、家族の負担軽減策をケアマネと検討する。",
+    rating: ["継続", "達成", "一部達成"],
   },
   U003: {
-    comments: ["食事摂取は概ね良好。", "献立相談のうえ買物・調理を実施。", "重複購入がみられ、冷蔵庫内の管理には声かけが必要。"],
-    issues: "同じ食品の重複購入（認知機能の低下の可能性）。", policy: "買物リストを本人と作成する手順を追加することを提案したい。", rating: ["継続", "達成", "一部達成"],
+    condition: "冷蔵庫内に牛乳・卵の重複購入があり、財布に釣銭を入れたままにするなど記憶・金銭管理の低下がうかがえる。9/22から買物リストを導入し重複はなくなった。9/18に食欲低下がみられたが、その後は回復している。",
+    comments: [
+      "食事は概ね7〜8割以上とれているが、9/18は5割と食欲の低下がみられた。",
+      "9/22から本人と買物リストを作る方法を取り入れ、重複購入がなくなった。",
+      "賞味期限切れ食品の処分と重複の解消で冷蔵庫内は改善。金銭管理には不安が残る。",
+    ],
+    issues: "金銭管理（釣銭の放置）と食欲の変動。",
+    policy: "買物リストを手順に加える計画変更と、日常生活自立支援事業の活用をケアマネと検討したい。",
+    rating: ["継続", "達成", "一部達成"],
   },
   U004: {
-    comments: ["9月13日から新計画に移行。褥瘡の発生なし。", "定時のおむつ交換・体位変換を実施し、皮膚トラブルなし。", "朝食は概ね8割摂取。"],
-    issues: "夕方に傾眠傾向の日がある。", policy: "現行計画を継続し、傾眠・食事量の変化を長男と共有する。", rating: ["継続", "達成", "達成"],
+    condition: "9/7に右踵の発赤（約1.5cm）があり、除圧で9/11にはほぼ消失。9/13から新計画に移行し、9/25の訪問診療でも褥瘡なし。9/16夕方から9/18朝に傾眠があり朝食は5割に低下したが、9/21には全量摂取まで回復した。",
+    comments: [
+      "9/7に右踵の発赤があり、9/13から除圧を強化した新計画に移行。9/25の訪問診療でも褥瘡なしと確認された。",
+      "ヒールプロテクターと2時間ごとの体位変換を長男と継続し、発赤は消失、再発なし。",
+      "朝食は概ね8割以上。9/18のみ傾眠のため5割に低下した。",
+    ],
+    issues: "傾眠の日があり、食事量・尿量が変動する。",
+    policy: "現行計画を継続し、傾眠・食事量・尿量の変化を長男と共有する。",
+    rating: ["継続", "達成", "達成"],
   },
   U005: {
-    comments: ["腰痛の悪化なく、清潔な住環境を保てている。", "座位での洗濯物たたみを毎回実施できている。"],
-    issues: "粗大ゴミの出し方の相談あり（ケアマネへ伝達済み）。", policy: "現行計画を継続する。計画期間（11月末）の終了前に評価を行う。", rating: ["継続", "達成"],
+    condition: "9/16に布団を干そうとして腰痛が出たが、杖歩行で生活し1週間で回復した。粗大ゴミは本人が申し込み、9/23に出すことができた。表情は明るく、独居生活は安定している。",
+    comments: [
+      "9/16に布団干しで腰痛が出たが1週間で回復。住環境は清潔に保てている。",
+      "座位での洗濯物たたみを継続できている（腰痛のあった日は休止）。",
+    ],
+    issues: "布団干しなど重い物を持つ動作で腰痛が出やすい。",
+    policy: "現行計画を継続する。計画期間（11月末）の終了前に評価を行う。",
+    rating: ["継続", "一部達成"],
   },
 };
 
@@ -305,9 +358,11 @@ export function mockDataset(): Dataset {
     const r = draftReport(u, month, PLANS, records, "中村 真理", `2026-10-0${2 + (i % 3)}T15:00`);
     const t = REPORT_TEXT[u.id];
     r.goalEvaluations = r.goalEvaluations.map((g, k) => ({ ...g, rating: t.rating[k] ?? "継続", comment: t.comments[k] ?? "" }));
+    r.condition = t.condition;
+    if (t.summary) r.serviceSummary = t.summary;
     r.issues = t.issues;
     r.policy = t.policy;
-    r.planChange = u.id === "U003" ? "要検討" : "不要";
+    r.planChange = t.planChange ?? (u.id === "U003" ? "要検討" : "不要");
     r.status = "確定";
     r.finalizedAt = `2026-10-0${2 + (i % 3)}T16:30`;
     r.sentAt = `2026-10-0${3 + (i % 3)}T10:00`;
