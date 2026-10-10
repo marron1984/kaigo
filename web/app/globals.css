@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --font-jp: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+}
+
+body {
+  font-family: var(--font-jp);
+  background: #f5f7fa;
+  color: #1f2937;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    break-after: page;
+  }
+  .sheet:last-child {
+    break-after: auto;
+  }
+}
