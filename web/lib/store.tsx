@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { runChecks, type Finding } from "./checks";
 import { idbDel, idbGet, idbSet } from "./idb";
 import { largeDataset } from "./large/generate";
+import { mergeRows, type ImportKind, type Rows } from "./merge";
 import { mockDataset } from "./mock";
 import { localIso } from "./format";
 import { OFFICE } from "./master";
@@ -11,14 +12,7 @@ import type { CarePlan, CareRecord, CareReport, CareUser, Dataset, ImportLog, Of
 
 const KEY = "dataset-v2";
 
-export type ImportKind = "users" | "plans" | "staff" | "records";
-type Rows = { users: CareUser[]; plans: CarePlan[]; staff: Staff[]; records: CareRecord[] };
-const KEY_OF: { [K in ImportKind]: (x: Rows[K][number]) => string } = {
-  users: (x) => x.id,
-  plans: (x) => x.id,
-  staff: (x) => x.id,
-  records: (x) => x.no,
-};
+export type { ImportKind } from "./merge";
 
 export function emptyDataset(): Dataset {
   return { source: "imported", office: { ...OFFICE }, period: { from: "", to: "" }, users: [], plans: [], staff: [], records: [], reports: [], shifts: [], selfCheck: {}, importLogs: [] };
@@ -71,9 +65,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const importRows = useCallback<Ctx["importRows"]>(
     (kind, rows, mode, fileName) => {
       const base = ds.source === "mock" ? { ...emptyDataset(), selfCheck: ds.selfCheck } : ds;
-      const key = KEY_OF[kind] as (x: unknown) => string;
-      const current = base[kind] as unknown[];
-      const merged = mode === "置き換え" ? rows : [...current.filter((x) => !rows.some((y) => key(y) === key(x))), ...rows];
+      const merged = mergeRows(kind, base[kind] as Rows[typeof kind], rows, mode);
       commit({
         ...base,
         source: "imported",

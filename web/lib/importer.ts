@@ -49,14 +49,19 @@ export async function readTable(file: File): Promise<Table> {
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buf);
-    const ws = wb.worksheets[0];
-    const out: Table = [];
-    ws.eachRow({ includeEmpty: false }, (row) => {
-      const vals: string[] = [];
-      for (let c = 1; c <= ws.columnCount; c++) vals.push(cellText(row.getCell(c).value));
-      out.push(vals);
-    });
-    return out.filter((r) => r.some((c) => c.trim()));
+    // 見出し行が1枚目と同じシートは続けて読む（月ごと・利用者ごとにシートを分けたファイル用）
+    const sheetRows = wb.worksheets.map((ws) => {
+      const rows: Table = [];
+      ws.eachRow({ includeEmpty: false }, (row) => {
+        const vals: string[] = [];
+        for (let c = 1; c <= ws.columnCount; c++) vals.push(cellText(row.getCell(c).value));
+        rows.push(vals);
+      });
+      return rows.filter((r) => r.some((c) => c.trim()));
+    }).filter((rows) => rows.length > 0);
+    if (sheetRows.length === 0) return [];
+    const head = sheetRows[0][0].join("\t");
+    return [sheetRows[0][0], ...sheetRows.flatMap((rows) => (rows[0].join("\t") === head ? rows.slice(1) : []))];
   }
   if (/\.xls$/i.test(file.name)) throw new Error("古い形式（.xls）は読めません。Excelで .xlsx または CSV に保存し直してください。");
   return parseCSV(decodeText(buf));
@@ -377,7 +382,8 @@ export function parsePlans(input: Table, users: CareUser[]): ParseResult<CarePla
   const table = fillDownPlanRows(input);
   const res = run<PlanRow>(table, PLAN_FIELDS, (get, _row, err, warn) => {
     let userId = z2h(get("userId"));
-    const byId = users.find((u) => u.id === userId || u.insuredNo === userId);
+    // 空欄どうしを一致とみなさない（被保険者番号が未登録の利用者に誤って結びつくのを防ぐ）
+    const byId = userId ? users.find((u) => u.id === userId || u.insuredNo === userId) : undefined;
     if (byId) userId = byId.id;
     else if (!userId && get("userName")) {
       const hits = users.filter((u) => u.name.replace(/\s/g, "") === get("userName").replace(/\s/g, ""));
@@ -460,11 +466,11 @@ export const RECORD_FIELDS: Field[] = [
 ];
 
 export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): ParseResult<CareRecord> {
-  let seq = 1;
   return run(table, RECORD_FIELDS, (get, _row, err, warn) => {
     const date = dateField(get, "date", "提供日", err, true);
     let userId = z2h(get("userId"));
-    const u = users.find((x) => x.id === userId || x.insuredNo === userId) ?? (!userId ? users.find((x) => x.name.replace(/\s/g, "") === get("userName").replace(/\s/g, "")) : undefined);
+    const nameKey = get("userName").replace(/\s/g, "");
+    const u = userId ? users.find((x) => x.id === userId || x.insuredNo === userId) : nameKey ? users.find((x) => x.name.replace(/\s/g, "") === nameKey) : undefined;
     if (u) userId = u.id;
     if (!userId) err("利用者ID または 利用者名 が必要です");
     else if (!u) warn(`利用者「${userId}」が利用者リストにありません`);
@@ -479,14 +485,17 @@ export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): P
     const billingCode = normalizeCode(get("billingCode"));
     const units = num(get("units")) ?? unitsOfCode(billingCode);
     if (units === null) err(`算定区分「${get("billingCode")}」を読めません`);
-    const st = staff.find((s) => s.id === z2h(get("staff")) || s.name.replace(/\s/g, "") === get("staff").replace(/\s/g, ""));
+    const staffKey = get("staff").replace(/\s/g, "");
+    const st = staffKey ? staff.find((s) => s.id === z2h(get("staff")) || s.name.replace(/\s/g, "") === staffKey) : undefined;
     if (!st) warn(`担当職員「${get("staff")}」が職員名簿にありません`);
-    const sv = staff.find((s) => s.id === get("supervisor") || s.name.replace(/\s/g, "") === get("supervisor").replace(/\s/g, ""));
+    const svKey = get("supervisor").replace(/\s/g, "");
+    const sv = svKey ? staff.find((s) => s.id === get("supervisor") || s.name.replace(/\s/g, "") === svKey) : undefined;
     const svAtRaw = get("supervisorCheckedAt");
     const svAt = svAtRaw ? (parseDateJP(svAtRaw.split(/[ T]/)[0]) ?? "") + (svAtRaw.match(/\d{1,2}:\d{2}/) ? `T${parseTime(svAtRaw.match(/\d{1,2}:\d{2}/)![0])}` : "T00:00") : "";
     const reportTo = get("reportTo").replace(/^(なし|無|-|―)$/, "");
     return {
-      no: get("no") || `I${String(seq++).padStart(5, "0")}`,
+      // 記録Noがないときは「利用者ID-提供日-開始時刻」で番号を付ける（同じ訪問を2回取り込んでも重複しない）
+      no: get("no") || `${userId}-${date.replaceAll("-", "")}-${(start ?? "").replace(":", "")}`,
       date, userId, planCode: normalizeCode(get("planCode")) || billingCode, start: start ?? "", end: end ?? "", minutes,
       bodyMinutes: num(get("bodyMinutes")) ?? undefined, billingCode, units: units ?? 0,
       body: list(get("body")).filter((x) => x !== "―"), life: list(get("life")).filter((x) => x !== "―"),

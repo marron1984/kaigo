@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { ImportCard, STEPS } from "@/components/ImportCard";
 import { FilterForm } from "@/components/FilterForm";
 import { ButtonLink, Empty, PageTitle, td, th } from "@/components/ui";
 import { yenOf } from "@/lib/billing";
@@ -12,6 +14,7 @@ import { lookup, useData } from "@/lib/store";
 
 export function RecordsView({ f }: { f: Filters }) {
   const { ds, findings } = useData();
+  const [openImport, setOpenImport] = useState(() => ds.records.length === 0);
   const L = lookup(ds);
   const flagged = new Set(findings.filter((x) => x.kind === "record").map((x) => x.target));
   const rs = applyFilters(ds.records, f, flagged);
@@ -34,7 +37,15 @@ export function RecordsView({ f }: { f: Filters }) {
       <PageTitle title="サービス提供記録（テレッサ）" sub={`${rs.length}件 / ${yen(units)}単位 / ${yen(yenOf(rs.reduce((s, r) => s + r.units, 0), UNIT_PRICE))}円`}>
         <ButtonLink href={`/print${qs}`} primary>この条件で印刷（A4・1件1枚）</ButtonLink>
         <button onClick={exportCSV} className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">CSV出力</button>
+        <button onClick={() => setOpenImport((v) => !v)} className="rounded border border-teal-700 bg-white px-4 py-2 text-sm font-medium text-teal-800 hover:bg-teal-50">
+          {openImport ? "読み込みを閉じる" : "提供記録を読み込む"}
+        </button>
       </PageTitle>
+      {openImport && (
+        <div className="no-print mb-4">
+          <ImportCard step={STEPS.find((s) => s.kind === "records")!} title="提供記録を読み込む" />
+        </div>
+      )}
       <FilterForm f={f} action="/records" />
       {rs.length === 0 ? (
         <Empty>該当する記録がありません。</Empty>
