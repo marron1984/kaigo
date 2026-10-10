@@ -1,13 +1,16 @@
+"use client";
+
 import Link from "next/link";
 import { PageTitle, td, th } from "@/components/ui";
-import { getRecords, getStaff } from "@/lib/data";
+import { useData } from "@/lib/store";
 import { BODY_QUALIFIED } from "@/lib/master";
 
 export default function StaffPage() {
-  const records = getRecords();
+  const { ds } = useData();
+  const records = ds.records;
   return (
     <>
-      <PageTitle title="職員" sub="氏名はすべて架空。資格証の写しは別途保管が必要" />
+      <PageTitle title="職員" sub={`${ds.source === "mock" ? "氏名はすべて架空。" : ""}資格証の写しは別途保管が必要`} />
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead>
@@ -18,7 +21,7 @@ export default function StaffPage() {
             </tr>
           </thead>
           <tbody>
-            {getStaff().map((s) => {
+            {ds.staff.map((s) => {
               const rs = records.filter((r) => r.staffId === s.id);
               const min = rs.reduce((a, r) => a + r.minutes, 0);
               return (

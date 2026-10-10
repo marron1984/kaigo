@@ -47,3 +47,22 @@ export function ButtonLink({ href, children, primary }: { href: string; children
 
 export const th = "border-b border-slate-200 bg-slate-50 px-2 py-2 text-left text-xs font-semibold text-slate-600 whitespace-nowrap";
 export const td = "border-b border-slate-100 px-2 py-1.5 align-top";
+
+export function Empty({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">{children}</div>;
+}
+
+export function NotFound({ what }: { what: string }) {
+  return <Empty>{what}が見つかりません。<Link href="/" className="ml-1 text-teal-700 underline">ダッシュボードへ</Link></Empty>;
+}
+
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block text-xs text-slate-600">
+      {label}
+      <div className="mt-1">{children}</div>
+    </label>
+  );
+}
+
+export const input = "w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";

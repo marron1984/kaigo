@@ -4,8 +4,9 @@
  */
 import { classify } from "./billing";
 import { fromMin, toMin, weekdayOf, ymd } from "./format";
-import { LEAVE_ITEMS, BODY_ITEMS, LIFE_ITEMS } from "./master";
-import type { CareRecord, CareUser, HistoryEntry, Staff } from "./types";
+import { LEAVE_ITEMS, BODY_ITEMS, LIFE_ITEMS, OFFICE } from "./master";
+import { draftReport } from "./report";
+import type { CarePlan, CareRecord, CareReport, CareUser, Dataset, GoalRating, PlanService, Staff, Weekday } from "./types";
 
 export const STAFF: Staff[] = [
   { id: "S01", name: "中村 真理", qualification: "介護福祉士", role: "サービス提供責任者" },
@@ -17,44 +18,110 @@ export const STAFF: Staff[] = [
 
 export const USERS: CareUser[] = [
   {
-    id: "U001", name: "山田 花子", kana: "ヤマダ ハナコ", sex: "女", age: 84, careLevel: "要介護2",
-    insuredNo: "0000000001", careManager: "いいかいご居宅介護支援 担当A",
-    plan: [
-      { weekday: "月", code: "身体1生活1", start: "09:00", minutes: 60 },
-      { weekday: "水", code: "身体2", start: "09:00", minutes: 45 },
-      { weekday: "金", code: "身体1生活1", start: "09:00", minutes: 60 },
+    id: "U001", name: "山田 花子", kana: "ヤマダ ハナコ", sex: "女", birthDate: "1942-05-12", careLevel: "要介護2",
+    certFrom: "2026-04-01", certTo: "2027-03-31", insuredNo: "0000000001", insurerNo: "27XXXX", burden: "1割",
+    cmOffice: "いいかいご居宅介護支援", careManager: "担当A", contractDate: "2025-04-01", note: "独居。右膝OA。入浴は見守り〜一部介助。",
+  },
+  {
+    id: "U002", name: "佐藤 一郎", kana: "サトウ イチロウ", sex: "男", birthDate: "1947-01-23", careLevel: "要介護3",
+    certFrom: "2026-02-01", certTo: "2027-01-31", insuredNo: "0000000002", insurerNo: "27XXXX", burden: "1割",
+    cmOffice: "いいかいご居宅介護支援", careManager: "担当B", contractDate: "2024-08-20", note: "脳梗塞後遺症（左片麻痺）。妻と二人暮らし。",
+  },
+  {
+    id: "U003", name: "鈴木 和子", kana: "スズキ カズコ", sex: "女", birthDate: "1938-09-02", careLevel: "要介護1",
+    certFrom: "2025-12-01", certTo: "2026-11-30", insuredNo: "0000000003", insurerNo: "27XXXX", burden: "2割",
+    cmOffice: "いいかいご居宅介護支援", careManager: "担当A", contractDate: "2025-07-10", note: "独居。軽度認知症。買物・調理援助中心。",
+  },
+  {
+    id: "U004", name: "高橋 進", kana: "タカハシ ススム", sex: "男", birthDate: "1935-03-30", careLevel: "要介護4",
+    certFrom: "2026-03-01", certTo: "2027-02-28", insuredNo: "0000000004", insurerNo: "27XXXX", burden: "1割",
+    cmOffice: "いいかいご居宅介護支援", careManager: "担当C", contractDate: "2025-11-01", note: "ほぼ臥床。長男同居（日中不在）。おむつ交換・体位変換。",
+  },
+  {
+    id: "U005", name: "田中 美代子", kana: "タナカ ミヨコ", sex: "女", birthDate: "1950-11-15", careLevel: "要介護1",
+    certFrom: "2026-06-01", certTo: "2027-05-31", insuredNo: "0000000005", insurerNo: "27XXXX", burden: "1割",
+    cmOffice: "いいかいご居宅介護支援", careManager: "担当D", contractDate: "2026-05-25", note: "独居。腰椎圧迫骨折後。掃除・洗濯援助。",
+  },
+];
+
+const svc = (weekday: Weekday, start: string, minutes: number, code: string, content: string, caution: string, bodyMinutes?: number): PlanService =>
+  ({ weekday, start, minutes, code, content, caution, bodyMinutes });
+
+export const PLANS: CarePlan[] = [
+  {
+    id: "P-U001-1", userId: "U001", createdAt: "2026-03-20", createdBy: "中村 真理", carePlanDate: "2026-03-18",
+    agreedAt: "2026-03-25", deliveredAt: "2026-03-25", periodFrom: "2026-04-01", periodTo: "2026-09-30",
+    wish: "本人：できるだけ自分でお風呂に入り、今の家で暮らし続けたい。",
+    longGoal: "膝の痛みと付き合いながら、在宅で清潔な生活を続けられる。",
+    shortGoals: ["見守りのもとで安全に入浴できる。", "掃除・洗濯の一部をヘルパーと一緒に行える。"],
+    services: [
+      svc("月", "09:00", 60, "身体1生活1", "入浴の見守り・一部介助（背部洗身）、更衣介助、居室掃除・洗濯", "浴槽出入りは手すり使用。膝の痛み訴え時は足浴に変更しサ責へ報告。", 25),
+      svc("水", "09:00", 45, "身体2", "入浴の見守り・一部介助、更衣介助、服薬確認", "入浴前に体調確認（体温・血圧）。"),
+      svc("金", "09:00", 60, "身体1生活1", "入浴の見守り・一部介助、居室掃除・洗濯（本人と一緒に）", "自立支援のため洗濯物干しは本人と共同で実施。", 25),
     ],
-    note: "独居。右膝OA。入浴は見守り〜一部介助。", planCreated: "2026-09-20", planAgreed: "2026-09-25",
   },
   {
-    id: "U002", name: "佐藤 一郎", kana: "サトウ イチロウ", sex: "男", age: 79, careLevel: "要介護3",
-    insuredNo: "0000000002", careManager: "いいかいご居宅介護支援 担当B",
-    plan: (["月", "火", "木", "土"] as const).map((w) => ({ weekday: w, code: "身体2", start: "10:30", minutes: 50 })),
-    note: "脳梗塞後遺症（左片麻痺）。妻と二人暮らし。", planCreated: "2026-08-28", planAgreed: "2026-09-01",
-  },
-  {
-    id: "U003", name: "鈴木 和子", kana: "スズキ カズコ", sex: "女", age: 88, careLevel: "要介護1",
-    insuredNo: "0000000003", careManager: "いいかいご居宅介護支援 担当A",
-    plan: [
-      { weekday: "火", code: "生活3", start: "14:00", minutes: 60 },
-      { weekday: "金", code: "生活3", start: "14:00", minutes: 60 },
+    id: "P-U001-2", userId: "U001", createdAt: "2026-09-22", createdBy: "中村 真理", carePlanDate: "2026-09-19",
+    agreedAt: "2026-09-26", deliveredAt: "2026-09-26", periodFrom: "2026-10-01", periodTo: "2027-03-31",
+    wish: "本人：できるだけ自分でお風呂に入り、今の家で暮らし続けたい。",
+    longGoal: "膝の痛みと付き合いながら、在宅で清潔な生活を続けられる。",
+    shortGoals: ["見守りのもとで安全に入浴できる。", "洗濯物干しを自分で行える。"],
+    services: [
+      svc("月", "09:00", 60, "身体1生活1", "入浴の見守り・一部介助、更衣介助、居室掃除・洗濯", "膝の痛み訴え時は足浴に変更しサ責へ報告。", 25),
+      svc("水", "09:00", 45, "身体2", "入浴の見守り・一部介助、更衣介助、服薬確認", "入浴前に体調確認。"),
+      svc("金", "09:00", 60, "身体1生活1", "入浴の見守り・一部介助、居室掃除・洗濯", "洗濯物干しは本人主体で見守り。", 25),
     ],
-    note: "独居。軽度認知症。買物・調理援助中心。", planCreated: "2026-07-15", planAgreed: "2026-07-18",
   },
   {
-    id: "U004", name: "高橋 進", kana: "タカハシ ススム", sex: "男", age: 91, careLevel: "要介護4",
-    insuredNo: "0000000004", careManager: "いいかいご居宅介護支援 担当C",
-    plan: (["月", "水", "金"] as const).flatMap((w) => [
-      { weekday: w, code: "身体1", start: "07:30", minutes: 25 },
-      { weekday: w, code: "身体1", start: "17:30", minutes: 25 },
+    id: "P-U002-1", userId: "U002", createdAt: "2026-07-25", createdBy: "中村 真理", carePlanDate: "2026-07-22",
+    agreedAt: "2026-07-30", deliveredAt: "2026-07-30", periodFrom: "2026-08-01", periodTo: "2027-01-31",
+    wish: "本人：トイレは自分で行きたい。妻：介護の負担を減らしたい。",
+    longGoal: "安全に移乗・排泄ができ、夫婦で在宅生活を続けられる。",
+    shortGoals: ["車椅子への移乗を介助のもとで安全に行える。", "週2回以上入浴し、皮膚トラブルを防ぐ。"],
+    services: (["月", "火", "木", "土"] as const).map((w) =>
+      svc(w, "10:30", 50, "身体2", "移乗介助、排泄介助、入浴介助（シャワーチェア使用）、更衣介助、服薬確認", "左片麻痺のため左側からの介助。仙骨部の皮膚状態を毎回確認。"),
+    ),
+  },
+  {
+    id: "P-U003-1", userId: "U003", createdAt: "2026-07-15", createdBy: "中村 真理", carePlanDate: "2026-07-12",
+    agreedAt: "2026-07-18", deliveredAt: "2026-07-18", periodFrom: "2026-08-01", periodTo: "2027-01-31",
+    wish: "本人：自分の家で好きなものを食べて暮らしたい。",
+    longGoal: "栄養バランスのとれた食事を続け、独居生活を維持できる。",
+    shortGoals: ["週2回、本人と献立を相談して買物・調理ができる。", "冷蔵庫内の食品管理ができる。"],
+    services: [
+      svc("火", "14:00", 60, "生活3", "買物（本人と献立相談）、調理、配膳、台所・居室の掃除", "預り金は出納帳に記入しレシートを保管。重複購入に注意。"),
+      svc("金", "14:00", 60, "生活3", "買物、調理、配膳、台所・居室の掃除", "賞味期限切れ食品は本人了承のうえ処分。"),
+    ],
+  },
+  {
+    id: "P-U004-1", userId: "U004", createdAt: "2026-09-10", createdBy: "中村 真理", carePlanDate: "2026-09-08",
+    agreedAt: "2026-09-12", deliveredAt: "2026-09-12", periodFrom: "2026-09-13", periodTo: "2027-02-28",
+    wish: "長男：日中仕事で不在のため、朝夕の排泄と食事の介助をお願いしたい。",
+    longGoal: "褥瘡を作らず、清潔で安楽に在宅生活を送れる。",
+    shortGoals: ["定時のおむつ交換と体位変換で皮膚トラブルを防ぐ。", "朝食を8割以上摂取できる。"],
+    services: (["月", "水", "金"] as const).flatMap((w) => [
+      svc(w, "07:30", 25, "身体1", "おむつ交換・陰部洗浄、体位変換、朝食介助、服薬介助", "ミキサー食。むせ込みに注意し、ギャッジアップ30度以上で介助。"),
+      svc(w, "17:30", 25, "身体1", "おむつ交換、体位変換、清拭", "背部・踵部の発赤を毎回確認し、連絡ノートに記入。"),
     ]),
-    note: "ほぼ臥床。長男同居（日中不在）。おむつ交換・体位変換。", planCreated: "2026-09-10", planAgreed: "2026-09-12",
   },
   {
-    id: "U005", name: "田中 美代子", kana: "タナカ ミヨコ", sex: "女", age: 76, careLevel: "要介護1",
-    insuredNo: "0000000005", careManager: "いいかいご居宅介護支援 担当D",
-    plan: [{ weekday: "木", code: "生活2", start: "13:00", minutes: 45 }],
-    note: "独居。腰椎圧迫骨折後。掃除・洗濯援助。", planCreated: "2026-06-01", planAgreed: "2026-06-03",
+    id: "P-U004-0", userId: "U004", createdAt: "2026-03-05", createdBy: "中村 真理", carePlanDate: "2026-03-03",
+    agreedAt: "2026-03-07", deliveredAt: "2026-03-07", periodFrom: "2026-03-08", periodTo: "2026-09-12",
+    wish: "長男：日中仕事で不在のため、朝夕の介助をお願いしたい。",
+    longGoal: "清潔で安楽に在宅生活を送れる。",
+    shortGoals: ["定時のおむつ交換で皮膚トラブルを防ぐ。"],
+    services: (["月", "水", "金"] as const).flatMap((w) => [
+      svc(w, "07:30", 25, "身体1", "おむつ交換、体位変換、朝食介助、服薬介助", "ミキサー食。むせ込みに注意。"),
+      svc(w, "17:30", 25, "身体1", "おむつ交換、体位変換、清拭", "背部・踵部の発赤を確認。"),
+    ]),
+  },
+  {
+    id: "P-U005-1", userId: "U005", createdAt: "2026-05-27", createdBy: "中村 真理", carePlanDate: "2026-05-26",
+    agreedAt: "2026-05-30", deliveredAt: "2026-05-30", periodFrom: "2026-06-01", periodTo: "2026-11-30",
+    wish: "本人：腰に負担をかけずに家をきれいに保ちたい。",
+    longGoal: "腰痛を悪化させず、清潔な住環境で独居生活を続けられる。",
+    shortGoals: ["座ってできる家事（洗濯物たたみ）を自分で行える。"],
+    services: [svc("木", "13:00", 40, "生活2", "居室・浴室の掃除、洗濯、ゴミ出し", "本人は座位で洗濯物たたみを実施（自立支援）。前かがみ動作を避ける。")],
   },
 ];
 
@@ -113,7 +180,7 @@ function rng(seed: number) {
   };
 }
 
-export const PERIOD = { from: "2026-10-01", to: "2026-10-31" };
+export const PERIOD = { from: "2026-09-01", to: "2026-09-30" };
 
 export function generateRecords(): CareRecord[] {
   const rand = rng(20261010);
@@ -128,13 +195,14 @@ export function generateRecords(): CareRecord[] {
 
   const records: CareRecord[] = [];
   let seq = 1;
-  const d = new Date(2026, 9, 1);
-  const end = new Date(2026, 9, 31);
+  const d = new Date(2026, 8, 1);
+  const end = new Date(2026, 8, 30);
   for (; d <= end; d.setDate(d.getDate() + 1)) {
     const date = ymd(d);
     const wd = weekdayOf(date);
     for (const [ui, u] of USERS.entries()) {
-      for (const p of u.plan.filter((x) => x.weekday === wd)) {
+      const plan = PLANS.find((x) => x.userId === u.id && x.periodFrom <= date && date <= x.periodTo);
+      for (const p of plan?.services.filter((x) => x.weekday === wd) ?? []) {
         const drift = pick([0, 0, 0, 2, -2, 3]);
         const startMin = toMin(p.start) + drift;
         let minutes: number;
@@ -142,8 +210,8 @@ export function generateRecords(): CareRecord[] {
         else if (p.minutes <= 30) minutes = pick([25, 26, 28, 29]);
         else minutes = p.minutes + pick([0, 0, 1, 2, -1]);
         const hasLife = p.code.includes("生活");
-        const bodyMinutes = p.code.startsWith("身体") && hasLife ? pick([25, 26, 27]) : undefined;
-        const bill = classify(p.code, minutes, bodyMinutes)!;
+        const bodyMinutes = p.bodyMinutes !== undefined ? p.bodyMinutes + pick([0, 1, 2]) : undefined;
+        const bill = classify(p.code, p.minutes, p.bodyMinutes)!;
 
         const ampm = startMin < 12 * 60 ? "am" : "pm";
         const cand = NOTES[u.id].filter(
@@ -194,12 +262,65 @@ export function generateRecords(): CareRecord[] {
     }
   }
 
-  // 監査証跡のサンプル: 記載誤りを理由付きで訂正した記録
-  const fix = (no: string, h: HistoryEntry) => records.find((r) => r.no === no)?.history.push(h);
-  fix("T0012", { at: "2026-10-06T09:35", by: "S01", field: "終了時刻", before: "11:50", after: "11:20", reason: "記入時の誤記。ヘルパー本人と利用者宅の連絡ノートで実時間を確認のうえ訂正" });
-  fix("T0027", { at: "2026-10-13T10:02", by: "S01", field: "排泄", before: "尿○ 便○", after: "尿○ 便×", reason: "ヘルパーへの聞き取りで記載誤りを確認" });
-  fix("T0045", { at: "2026-10-21T16:20", by: "S04", field: "特記事項", before: "様子変わりなし。", after: "", reason: "具体的な状態の記載が不足していたため、サ責の指導により追記" });
-  const t45 = records.find((r) => r.no === "T0045");
-  if (t45) t45.history[0].after = t45.note;
+  // 監査証跡のサンプル: 記載誤りを理由付きで訂正した記録（サ責確認時に訂正）
+  const at = (r: CareRecord) => r.supervisorCheckedAt ?? r.createdAt;
+  const r1 = records.filter((r) => r.userId === "U002")[2];
+  r1.history.push({ at: at(r1), by: "S01", field: "終了時刻", before: fromMin(toMin(r1.end) + 30), after: r1.end, reason: "記入時の誤記。ヘルパー本人と利用者宅の連絡ノートで実時間を確認のうえ訂正" });
+  const r2 = records.filter((r) => r.userId === "U004" && r.excretion !== "―")[5];
+  r2.history.push({ at: at(r2), by: "S01", field: "排泄", before: r2.excretion === "尿○ 便○" ? "尿○ 便×" : "尿○ 便○", after: r2.excretion, reason: "ヘルパーへの聞き取りで記載誤りを確認" });
+  const r3 = records.filter((r) => r.userId === "U005")[2];
+  r3.history.push({ at: at(r3), by: "S04", field: "特記事項", before: "様子変わりなし。", after: r3.note, reason: "具体的な状態の記載が不足していたため、サ責の指導により追記" });
   return records;
+}
+
+const REPORT_TEXT: Record<string, { comments: string[]; issues: string; policy: string; rating: GoalRating[] }> = {
+  U001: {
+    comments: ["膝の痛みの訴えは時々あるが、入浴は見守りで継続できている。", "浴槽の出入りは手すり使用で安定。痛みのある日は足浴に変更して対応した。", "洗濯物干しを本人と一緒に行えている。"],
+    issues: "右膝の痛みの訴えが月数回ある。", policy: "10月からの新計画に沿って、洗濯物干しを本人主体で行えるよう見守りを継続する。", rating: ["継続", "一部達成", "達成"],
+  },
+  U002: {
+    comments: ["夫婦での在宅生活を継続できている。", "移乗は左側からの介助で安全に実施できている。転倒なし。", "週4回の入浴を実施。仙骨部の軽度発赤は早期に共有し、悪化していない。"],
+    issues: "仙骨部の発赤（軽度）。体位変換の声かけを家族に依頼済み。", policy: "皮膚状態の観察を継続し、変化時は速やかに報告する。", rating: ["継続", "達成", "一部達成"],
+  },
+  U003: {
+    comments: ["食事摂取は概ね良好。", "献立相談のうえ買物・調理を実施。", "重複購入がみられ、冷蔵庫内の管理には声かけが必要。"],
+    issues: "同じ食品の重複購入（認知機能の低下の可能性）。", policy: "買物リストを本人と作成する手順を追加することを提案したい。", rating: ["継続", "達成", "一部達成"],
+  },
+  U004: {
+    comments: ["9月13日から新計画に移行。褥瘡の発生なし。", "定時のおむつ交換・体位変換を実施し、皮膚トラブルなし。", "朝食は概ね8割摂取。"],
+    issues: "夕方に傾眠傾向の日がある。", policy: "現行計画を継続し、傾眠・食事量の変化を長男と共有する。", rating: ["継続", "達成", "達成"],
+  },
+  U005: {
+    comments: ["腰痛の悪化なく、清潔な住環境を保てている。", "座位での洗濯物たたみを毎回実施できている。"],
+    issues: "粗大ゴミの出し方の相談あり（ケアマネへ伝達済み）。", policy: "現行計画を継続する。計画期間（11月末）の終了前に評価を行う。", rating: ["継続", "達成"],
+  },
+};
+
+export function mockDataset(): Dataset {
+  const records = generateRecords();
+  const month = PERIOD.from.slice(0, 7);
+  const reports: CareReport[] = USERS.map((u, i) => {
+    const r = draftReport(u, month, PLANS, records, "中村 真理", `2026-10-0${2 + (i % 3)}T15:00`);
+    const t = REPORT_TEXT[u.id];
+    r.goalEvaluations = r.goalEvaluations.map((g, k) => ({ ...g, rating: t.rating[k] ?? "継続", comment: t.comments[k] ?? "" }));
+    r.issues = t.issues;
+    r.policy = t.policy;
+    r.planChange = u.id === "U003" ? "要検討" : "不要";
+    r.status = "確定";
+    r.finalizedAt = `2026-10-0${2 + (i % 3)}T16:30`;
+    r.sentAt = `2026-10-0${3 + (i % 3)}T10:00`;
+    return r;
+  });
+  return {
+    source: "mock",
+    office: { ...OFFICE, name: "いいかいご訪問介護（モック）", officeNo: "27000000XX（モック）" },
+    period: PERIOD,
+    users: USERS,
+    plans: PLANS,
+    staff: STAFF,
+    records,
+    reports,
+    selfCheck: {},
+    importLogs: [],
+  };
 }

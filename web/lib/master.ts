@@ -1,10 +1,10 @@
 import type { Weekday } from "./types";
 
+/** 事業所情報の初期値（取り込み画面で変更できる） */
 export const OFFICE = {
   corp: "株式会社dhpケアマネジメント",
-  name: "いいかいご訪問介護（モック）",
-  officeNo: "27000000XX（モック）",
-  area: "大阪市（2級地）",
+  name: "いいかいご訪問介護",
+  officeNo: "",
 };
 
 /** 大阪市 2級地 訪問介護 円/単位（2027年4月の介護報酬改定で見直し） */

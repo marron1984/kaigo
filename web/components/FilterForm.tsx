@@ -1,18 +1,21 @@
-import { getPeriod, getRecords, getStaff, getUsers } from "@/lib/data";
-import type { Filters } from "@/lib/query";
+"use client";
+
+import type { Filters } from "@/lib/filters";
+import { useData } from "@/lib/store";
 
 const input = "rounded border border-slate-300 bg-white px-2 py-1.5 text-sm";
 
 export function FilterForm({ f, action }: { f: Filters; action: string }) {
-  const period = getPeriod();
-  const codes = [...new Set(getRecords().map((r) => r.billingCode))].sort();
+  const { ds } = useData();
+  const period = ds.period;
+  const codes = [...new Set(ds.records.map((r) => r.billingCode))].sort();
   return (
     <form action={action} className="no-print mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3">
       <label className="text-xs text-slate-600">
         利用者
         <select name="user" defaultValue={f.user ?? ""} className={`${input} mt-1 block`}>
           <option value="">すべて</option>
-          {getUsers().map((u) => (
+          {ds.users.map((u) => (
             <option key={u.id} value={u.id}>{u.id} {u.name}</option>
           ))}
         </select>
@@ -21,7 +24,7 @@ export function FilterForm({ f, action }: { f: Filters; action: string }) {
         担当職員
         <select name="staff" defaultValue={f.staff ?? ""} className={`${input} mt-1 block`}>
           <option value="">すべて</option>
-          {getStaff().map((s) => (
+          {ds.staff.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
@@ -50,6 +53,7 @@ export function FilterForm({ f, action }: { f: Filters; action: string }) {
           <option value="reported">報告・連絡あり</option>
           <option value="observe">状態変化（要観察）</option>
           <option value="corrected">訂正履歴あり</option>
+          <option value="finding">チェック指摘あり</option>
         </select>
       </label>
       <button className="rounded bg-teal-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-800">絞り込む</button>

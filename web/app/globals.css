@@ -25,9 +25,12 @@ body {
   .sheet {
     box-shadow: none !important;
     margin: 0 !important;
-    break-after: page;
   }
-  .sheet:last-child {
-    break-after: auto;
+  .sheet + .sheet {
+    break-before: page;
+  }
+  /* 画面用の2カラム（帳票＋サイドパネル）は印刷時に1カラムにする */
+  .print-block {
+    display: block !important;
   }
 }

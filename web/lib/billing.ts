@@ -43,3 +43,11 @@ export function classify(planCode: string, minutes: number, bodyMinutes?: number
 export function yenOf(units: number, unitPrice: number): number {
   return Math.floor(units * unitPrice);
 }
+
+/** 区分コード（身体2 / 身体1生活2 / 生活3 など）から基本単位数を求める。不明なら null */
+export function unitsOfCode(code: string): number | null {
+  const b = code.match(/^身体([0-3])(?:生活([1-3]))?$/);
+  if (b) return UNITS[`身体${b[1]}` as keyof typeof UNITS] + UNITS.生活加算 * Number(b[2] ?? 0);
+  if (code === "生活2" || code === "生活3") return UNITS[code];
+  return null;
+}

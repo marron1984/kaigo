@@ -41,3 +41,10 @@ export function yen(n: number): string {
 export function dateTime(iso: string): string {
   return iso.replace("T", " ").slice(0, 16).replaceAll("-", "/");
 }
+
+/** 日本時間の YYYY-MM-DDTHH:MM（端末のタイムゾーン設定に左右されない） */
+export function localIso(d = new Date()): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+    .format(d)
+    .replace(" ", "T");
+}

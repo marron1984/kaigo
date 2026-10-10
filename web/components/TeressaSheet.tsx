@@ -1,6 +1,8 @@
-import { getStaffById, getUser } from "@/lib/data";
+"use client";
+
 import { dateTime, jpDate, slashDate } from "@/lib/format";
-import { BODY_ITEMS, LEAVE_ITEMS, LIFE_ITEMS, OFFICE } from "@/lib/master";
+import { BODY_ITEMS, LEAVE_ITEMS, LIFE_ITEMS } from "@/lib/master";
+import { lookup, useData } from "@/lib/store";
 import type { CareRecord } from "@/lib/types";
 
 const L = "border border-slate-800 bg-slate-100 px-1.5 py-1 text-center font-semibold whitespace-nowrap";
@@ -23,9 +25,12 @@ function Checks({ items, checked }: { items: string[]; checked: string[] }) {
 
 /** 訪問介護サービス提供記録（テレッサ）1枚分。A4縦1ページで印刷される。 */
 export function TeressaSheet({ r }: { r: CareRecord }) {
-  const u = getUser(r.userId)!;
-  const staff = getStaffById(r.staffId);
-  const sv = getStaffById(r.supervisorCheckedBy);
+  const { ds } = useData();
+  const L0 = lookup(ds);
+  const u = L0.user(r.userId);
+  const staff = L0.staff(r.staffId);
+  const sv = L0.staff(r.supervisorCheckedBy);
+  const userName = u?.name ?? r.userId;
   return (
     <article className="sheet mx-auto mb-6 w-full max-w-[190mm] bg-white p-6 text-[12px] leading-snug shadow print:p-0">
       <div className="flex items-end justify-between">
@@ -33,19 +38,19 @@ export function TeressaSheet({ r }: { r: CareRecord }) {
         <div className="text-right">No. {r.no}</div>
       </div>
       <div className="mt-1 text-[11px]">
-        {OFFICE.corp}　{OFFICE.name}　事業所番号 {OFFICE.officeNo}
+        {ds.office.corp}　{ds.office.name}　事業所番号 {ds.office.officeNo || "未設定"}
       </div>
-      <div className="mb-2 text-[10px] text-red-700">※架空のモックデータ（実地調査準備・研修用）</div>
+      {ds.source === "mock" ? <div className="mb-2 text-[10px] text-red-700">※架空のモックデータ（実地調査準備・研修用）</div> : <div className="mb-2" />}
 
       <table className="w-full border-collapse">
         <tbody>
           <tr>
             <td className={L}>利用者名</td>
-            <td className={V} colSpan={2}>{u.name} 様</td>
+            <td className={V} colSpan={2}>{userName} 様</td>
             <td className={L}>要介護度</td>
-            <td className={V}>{u.careLevel}</td>
+            <td className={V}>{u?.careLevel}</td>
             <td className={L}>被保険者番号</td>
-            <td className={V} colSpan={2}>{u.insuredNo}（モック）</td>
+            <td className={V} colSpan={2}>{u?.insuredNo}{ds.source === "mock" && "（モック）"}</td>
           </tr>
           <tr>
             <td className={L}>提供日</td>
@@ -68,11 +73,11 @@ export function TeressaSheet({ r }: { r: CareRecord }) {
           </tr>
           <tr>
             <td className={L}>体温</td>
-            <td className={V}>{r.vitals.temp.toFixed(1)}℃</td>
+            <td className={V}>{r.vitals.temp != null ? `${r.vitals.temp.toFixed(1)}℃` : "―"}</td>
             <td className={L}>血圧</td>
-            <td className={V}>{r.vitals.bp}</td>
+            <td className={V}>{r.vitals.bp || "―"}</td>
             <td className={L}>脈拍</td>
-            <td className={V}>{r.vitals.pulse}回/分</td>
+            <td className={V}>{r.vitals.pulse != null ? `${r.vitals.pulse}回/分` : "―"}</td>
             <td className={L}>顔色・様子</td>
             <td className={V}>{r.condition}</td>
           </tr>
@@ -111,13 +116,13 @@ export function TeressaSheet({ r }: { r: CareRecord }) {
           </tr>
           <tr>
             <td className={L}>担当ヘルパー</td>
-            <td className={V}>{staff ? `${staff.name}（${staff.qualification}）` : "―"}</td>
+            <td className={V}>{staff ? `${staff.name}（${staff.qualification}）` : r.staffId || "―"}</td>
             <td className={`${L} w-[22mm]`}>サ責確認</td>
-            <td className={V}>{sv ? `${sv.name}　${dateTime(r.supervisorCheckedAt!)}` : "未確認"}</td>
+            <td className={V}>{r.supervisorCheckedAt ? `${sv?.name ?? ""}　${dateTime(r.supervisorCheckedAt)}` : "未確認"}</td>
           </tr>
           <tr>
             <td className={`${L} h-[12mm]`}>利用者確認</td>
-            <td className={V}>{r.userConfirmed ? `${u.name}（署名・モック）` : "未確認"}</td>
+            <td className={V}>{r.userConfirmed ? `${userName}（署名${ds.source === "mock" ? "・モック" : "済"}）` : "未確認"}</td>
             <td className={L}>確認日時</td>
             <td className={V}>{r.userConfirmed ? `${slashDate(r.date)} ${r.end}` : "―"}</td>
           </tr>

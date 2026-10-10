@@ -1,8 +1,8 @@
-import { filterRecords, getRecords } from "./data";
 import type { CareRecord } from "./types";
 
 export const FILTER_KEYS = ["user", "staff", "from", "to", "code", "flag"] as const;
 export type Filters = Partial<Record<(typeof FILTER_KEYS)[number], string>>;
+export type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export function readFilters(sp: Record<string, string | string[] | undefined>): Filters {
   const f: Filters = {};
@@ -19,11 +19,17 @@ export function queryString(f: Filters): string {
   return q ? `?${q}` : "";
 }
 
-/** 一覧・印刷・CSVで共通の絞り込み */
-export function selectRecords(f: Filters): CareRecord[] {
-  let rs = filterRecords(getRecords(), f);
-  if (f.flag === "reported") rs = rs.filter((r) => r.reported);
-  if (f.flag === "corrected") rs = rs.filter((r) => r.history.length > 0);
-  if (f.flag === "observe") rs = rs.filter((r) => r.condition !== "良好");
-  return rs;
+export function applyFilters(records: CareRecord[], f: Filters, flagged?: Set<string>): CareRecord[] {
+  return records.filter(
+    (r) =>
+      (!f.user || r.userId === f.user) &&
+      (!f.staff || r.staffId === f.staff) &&
+      (!f.from || r.date >= f.from) &&
+      (!f.to || r.date <= f.to) &&
+      (!f.code || r.billingCode === f.code) &&
+      (f.flag !== "reported" || r.reported) &&
+      (f.flag !== "corrected" || r.history.length > 0) &&
+      (f.flag !== "observe" || r.condition !== "良好") &&
+      (f.flag !== "finding" || !!flagged?.has(r.no)),
+  );
 }

@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+import { normalizeCode, parseCSV, parseDateJP, parsePlans, parseRecords, parseStaff, parseTime, parseUsers, parseWeekdays, TEMPLATES, templateCSV } from "./importer";
+
+describe("値の変換", () => {
+  it("日付（西暦・和暦・Excel）", () => {
+    expect(parseDateJP("2026/10/1")).toBe("2026-10-01");
+    expect(parseDateJP("２０２６年１０月１日")).toBe("2026-10-01");
+    expect(parseDateJP("令和8年10月1日")).toBe("2026-10-01");
+    expect(parseDateJP("R8.10.1")).toBe("2026-10-01");
+    expect(parseDateJP("昭和17年5月12日")).toBe("1942-05-12");
+    expect(parseDateJP("令和元年5月1日")).toBe("2019-05-01");
+    expect(parseDateJP("46296")).toBe("2026-10-01");
+    expect(parseDateJP("2026/2/30")).toBeNull();
+  });
+  it("時刻", () => {
+    expect(parseTime("9:00")).toBe("09:00");
+    expect(parseTime("9時30分")).toBe("09:30");
+    expect(parseTime("0.375")).toBe("09:00");
+    expect(parseTime("25:00")).toBeNull();
+  });
+  it("区分の表記ゆれ", () => {
+    expect(normalizeCode("身体介護2")).toBe("身体2");
+    expect(normalizeCode("身1生1")).toBe("身体1生活1");
+    expect(normalizeCode("生活援助3")).toBe("生活3");
+  });
+  it("曜日", () => {
+    expect(parseWeekdays("月・水・金")).toEqual(["月", "水", "金"]);
+    expect(parseWeekdays("月〜金")).toEqual(["月", "火", "水", "木", "金"]);
+    expect(parseWeekdays("毎日")).toHaveLength(7);
+    expect(parseWeekdays("週3")).toEqual([]);
+  });
+  it("CSV（引用符・改行）", () => {
+    expect(parseCSV('a,b\r\n"x,1","改\n行"\r\n')).toEqual([["a", "b"], ["x,1", "改\n行"]]);
+  });
+});
+
+const table = (kind: keyof typeof TEMPLATES) => parseCSV(templateCSV(kind));
+
+describe("テンプレートの取り込み", () => {
+  it("利用者", () => {
+    const r = parseUsers(table("users"));
+    expect(r.errors).toEqual([]);
+    expect(r.rows[0]).toMatchObject({ id: "U001", birthDate: "1942-05-12", certFrom: "2026-04-01", careLevel: "要介護2" });
+  });
+  it("訪問介護計画（複数行を1計画にまとめ、曜日を展開）", () => {
+    const users = parseUsers(table("users")).rows;
+    const r = parsePlans(table("plans"), users);
+    expect(r.errors).toEqual([]);
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0].services.map((s) => `${s.weekday}${s.code}`)).toEqual(["月身体1生活1", "金身体1生活1", "水身体2"]);
+    expect(r.rows[0].shortGoals).toHaveLength(2);
+  });
+  it("職員・記録", () => {
+    const users = parseUsers(table("users")).rows;
+    const staff = parseStaff(table("staff")).rows;
+    const r = parseRecords(table("records"), users, staff);
+    expect(r.errors).toEqual([]);
+    expect(r.rows[0]).toMatchObject({ userId: "U001", staffId: "S01", minutes: 60, units: 309, userConfirmed: true, supervisorCheckedBy: "S01" });
+  });
+  it("見出しの表記ゆれと必須列の不足", () => {
+    const r = parseUsers([["利用者番号", "利用者名", "介護度"], ["10", "テスト 太郎", "介護3"]]);
+    expect(r.rows[0]).toMatchObject({ id: "10", careLevel: "要介護3" });
+    expect(parseUsers([["番号"], ["1"]]).errors[0].message).toContain("氏名");
+  });
+  it("不正な値はエラー行になる", () => {
+    const users = parseUsers(table("users")).rows;
+    const t = table("plans");
+    t[1][15] = "週3";
+    const r = parsePlans(t, users);
+    expect(r.errors.some((e) => e.row === 2 && e.message.includes("曜日"))).toBe(true);
+  });
+});
