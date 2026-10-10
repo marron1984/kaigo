@@ -236,7 +236,8 @@ export function parseUsers(table: Table): ParseResult<CareUser> {
     const certTo = dateField(get, "certTo", "認定有効期間終了", err);
     if (!certFrom || !certTo) warn("認定有効期間が未入力です（運営指導チェックで指摘されます）");
     if (certFrom && certTo && certFrom > certTo) err("認定有効期間の開始が終了より後です");
-    if (insuredNo && !/^\d{10}$/.test(insuredNo)) warn(`被保険者番号「${insuredNo}」が10桁の数字ではありません`);
+    // 生活保護の被保護者（介護保険の被保険者でない方）は H＋9桁 の番号
+    if (insuredNo && !/^(\d{10}|H\d{9})$/.test(insuredNo)) warn(`被保険者番号「${insuredNo}」が10桁の数字（または H＋9桁）ではありません`);
     const sex = get("sex");
     return {
       id, name: get("name"), kana: get("kana"), sex: sex.startsWith("男") ? "男" : sex.startsWith("女") ? "女" : "",

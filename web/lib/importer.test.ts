@@ -67,6 +67,10 @@ describe("テンプレートの取り込み", () => {
     expect(parseRanges("○")).toEqual([{ from: "07:00", to: "20:00" }]);
     expect(parseRanges("12:00-9:00")).toBeNull();
   });
+  it("生活保護の H 番号は注意にしない", () => {
+    expect(parseUsers([["氏名", "被保険者番号"], ["テスト", "H111111111"]]).warnings.some((w) => w.message.includes("被保険者番号"))).toBe(false);
+    expect(parseUsers([["氏名", "被保険者番号"], ["テスト", "12345"]]).warnings.some((w) => w.message.includes("被保険者番号"))).toBe(true);
+  });
   it("見出しの表記ゆれと必須列の不足", () => {
     const r = parseUsers([["利用者番号", "利用者名", "介護度"], ["10", "テスト 太郎", "介護3"]]);
     expect(r.rows[0]).toMatchObject({ id: "10", careLevel: "要介護3" });
