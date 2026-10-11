@@ -98,6 +98,8 @@ export type CareRecord = {
   units: number;
   body: string[];
   life: string[];
+  /** サービス内容を文章で書いた場合の原文（取り込み時に項目へ振り分けたもとの文） */
+  serviceDetail?: string;
   staffId: string;
   helpers: number;
   vitals: Vitals;

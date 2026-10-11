@@ -24,12 +24,12 @@ export function RecordsView({ f }: { f: Filters }) {
 
   const exportCSV = () =>
     downloadCSV("サービス提供記録.csv", [
-      ["記録No", "提供日", "利用者ID", "利用者名", "開始", "終了", "提供分", "計画区分", "算定区分", "身体介護時間", "単位数", "金額", "身体介護", "生活援助", "担当職員", "体温", "血圧", "脈拍", "顔色・様子", "食事摂取", "排泄", "特記事項", "報告先", "利用者確認", "サ責確認日時", "サ責確認者", "訂正件数"],
+      ["記録No", "提供日", "利用者ID", "利用者名", "開始", "終了", "提供分", "計画区分", "算定区分", "身体介護時間", "単位数", "金額", "身体介護", "生活援助", "担当職員", "体温", "血圧", "脈拍", "顔色・様子", "食事摂取", "排泄", "特記事項", "報告先", "利用者確認", "サ責確認日時", "サ責確認者", "訂正件数", "サービス内容（記述）"],
       ...rs.map((r) => [
         r.no, r.date, r.userId, L.user(r.userId)?.name, r.start, r.end, r.minutes, r.planCode, r.billingCode, r.bodyMinutes, r.units,
         yenOf(r.units, UNIT_PRICE), r.body.join("・"), r.life.join("・"), L.staffName(r.staffId), r.vitals.temp, r.vitals.bp, r.vitals.pulse,
         r.condition, r.meal, r.excretion, r.note, r.reportTo, r.userConfirmed ? "済" : "未", r.supervisorCheckedAt?.replace("T", " "),
-        L.staffName(r.supervisorCheckedBy), r.history.length,
+        L.staffName(r.supervisorCheckedBy), r.history.length, r.serviceDetail,
       ]),
     ]);
 

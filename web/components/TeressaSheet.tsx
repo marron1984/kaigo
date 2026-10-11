@@ -96,6 +96,12 @@ export function TeressaSheet({ r }: { r: CareRecord }) {
       <div className="mt-2 border border-b-0 border-slate-800 bg-sky-100 px-1.5 py-1 font-semibold">■ 生活援助</div>
       <Checks items={LIFE_ITEMS} checked={r.life} />
 
+      {r.serviceDetail && (
+        <div className="border border-t-0 border-slate-800 px-1.5 py-1 text-[11px]">
+          <span className="font-semibold">サービス内容（記述）：</span>
+          {r.serviceDetail}
+        </div>
+      )}
       <div className="mt-2 border border-b-0 border-slate-800 bg-sky-100 px-1.5 py-1 font-semibold">■ 利用者の状態・サービス提供時の特記事項</div>
       <div className="min-h-[38mm] border border-slate-800 p-2 text-[13px]">{r.note}</div>
 

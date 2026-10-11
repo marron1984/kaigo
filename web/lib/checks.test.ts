@@ -131,3 +131,12 @@ describe("介護報告書の下書き", () => {
     expect(r.serviceSummary).toContain("計画どおり実施した");
   });
 });
+
+describe("定型文の使い回し", () => {
+  it("同じ利用者・同じ月に同じ特記事項が3件以上あると指摘する", () => {
+    const d = structuredClone(mockDataset());
+    const rs = d.records.filter((r) => r.userId === "U002").slice(0, 3);
+    for (const r of rs) r.note = "表情・受け答えともに普段と大きな変化なし。安全確認を行い支援を終了した。";
+    expect(runChecks(d).filter((f) => f.checkId === "C06")).toHaveLength(3);
+  });
+});

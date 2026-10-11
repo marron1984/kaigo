@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCode, parseCSV, parseDateJP, parsePlans, parseRecords, parseStaff, parseRanges, parseTime, parseUsers, parseWeekdays, TEMPLATES, templateCSV } from "./importer";
+import { normalizeCode, splitServices, parseCSV, parseDateJP, parsePlans, parseRecords, parseStaff, parseRanges, parseTime, parseUsers, parseWeekdays, TEMPLATES, templateCSV } from "./importer";
 
 describe("値の変換", () => {
   it("日付（西暦・和暦・Excel）", () => {
@@ -82,5 +82,19 @@ describe("テンプレートの取り込み", () => {
     t[1][15] = "週3";
     const r = parsePlans(t, users);
     expect(r.errors.some((e) => e.row === 2 && e.message.includes("曜日"))).toBe(true);
+  });
+});
+
+describe("サービス内容の文章からの振り分け", () => {
+  it("項目名の並びはそのまま", () => {
+    expect(splitServices("排泄介助・更衣介助", ["排泄介助", "更衣介助"])).toEqual({ items: ["排泄介助", "更衣介助"], detail: "" });
+  });
+  it("文章は言葉から項目を判断し、原文を残す", () => {
+    const BODY = ["起床介助", "整容", "自立支援見守り", "就寝介助", "排泄介助"];
+    expect(splitServices("起床時の声かけ、体調確認、整容等の必要な介助を実施。", BODY).items).toEqual(["起床介助", "整容"]);
+    expect(splitServices("できる動作は本人に行っていただき、自立支援に配慮した。", BODY).items).toEqual(["自立支援見守り"]);
+    const r = splitServices("夕方の安否・体調確認を行い、身の回りの介助を実施。", BODY);
+    expect(r.items).toEqual([]);
+    expect(r.detail).toContain("安否");
   });
 });

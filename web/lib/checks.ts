@@ -17,7 +17,7 @@ export const CHECKS: CheckDef[] = [
   { id: "C03", group: "記録", title: "計画に基づかない訪問", detail: "有効な訪問介護計画がない日、または計画にない曜日・時間帯の訪問がないか", basis: "訪問介護計画に基づくサービス提供" },
   { id: "C04", group: "記録", title: "2時間ルール", detail: "同一利用者への訪問間隔が2時間未満の場合、所要時間を合算しているか（20分未満の身体介護は対象外）", basis: "訪問介護の所要時間の取扱い" },
   { id: "C05", group: "記録", title: "サービス内容と区分の整合", detail: "身体介護の区分なら身体介護、生活援助の区分なら生活援助の内容が記録されているか", basis: "サービスの具体的内容の記録" },
-  { id: "C06", group: "記録", title: "特記事項（心身の状況）の記載", detail: "利用者の心身の状況やサービス提供時の様子が具体的に記載されているか", basis: "提供した具体的なサービスの内容等の記録" },
+  { id: "C06", group: "記録", title: "特記事項（心身の状況）の記載", detail: "利用者の心身の状況やサービス提供時の様子が具体的に記載されているか（同じ文面の使い回しがないか）", basis: "提供した具体的なサービスの内容等の記録" },
   { id: "C07", group: "記録", title: "利用者確認", detail: "利用者（家族）の確認を得ているか", basis: "サービス提供の記録" },
   { id: "C08", group: "記録", title: "サービス提供責任者の確認", detail: "サ責が記録内容を確認しているか", basis: "サービス提供責任者の責務" },
   { id: "C09", group: "記録", title: "訪問介護員の資格要件", detail: "身体介護を有資格者が提供しているか", basis: "訪問介護員等の資格" },
@@ -87,6 +87,12 @@ export function runChecks(ds: Pick<Dataset, "records" | "users" | "staff" | "pla
     if (!user) rec("C16", `利用者（${r.userId}）が利用者リストにない`);
     else if (!user.certFrom || !user.certTo) rec("C16", "利用者の認定有効期間が登録されていない");
     else if (r.date < user.certFrom || r.date > user.certTo) rec("C16", `認定有効期間（${user.certFrom}〜${user.certTo}）外の提供`);
+  }
+
+  // 同じ利用者・同じ月で、まったく同じ特記事項が3件以上ある（定型文の使い回し）
+  for (const list of groupBy(ds.records, (r) => `${r.userId}|${r.date.slice(0, 7)}|${r.note.trim()}`).values()) {
+    if (list.length >= 3 && list[0].note.trim())
+      for (const r of list) add("C06", "record", r.no, `同じ文面の特記事項が今月${list.length}件あり、その日の状態が読み取れない`);
   }
 
   for (const list of groupBy(ds.records, (r) => `${r.userId}|${r.date}`).values()) {

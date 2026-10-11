@@ -4,7 +4,7 @@
  */
 import { unitsOfCode } from "./billing";
 import { fromMin } from "./format";
-import { LEAVE_ITEMS, WEEKDAYS } from "./master";
+import { BODY_ITEMS, LEAVE_ITEMS, LIFE_ITEMS, WEEKDAYS } from "./master";
 import type { CarePlan, CareRecord, CareUser, PlanService, Staff, Weekday } from "./types";
 
 export type Table = string[][];
@@ -464,6 +464,7 @@ export const RECORD_FIELDS: Field[] = [
   { key: "userConfirmed", label: "利用者確認", aliases: ["確認印", "サイン"] },
   { key: "supervisorCheckedAt", label: "サ責確認日時", aliases: ["サ責確認"] },
   { key: "supervisor", label: "サ責確認者", aliases: [] },
+  { key: "detail", label: "サービス内容（記述）", aliases: ["サービス内容", "援助内容"] },
 ];
 
 export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): ParseResult<CareRecord> {
@@ -494,7 +495,12 @@ export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): P
     if (units === null) err(`算定区分「${get("billingCode")}」を読めません`);
     const staffKey = get("staff").replace(/\s/g, "");
     const st = staffKey ? staff.find((s) => s.id === z2h(get("staff")) || s.name.replace(/\s/g, "") === staffKey) : undefined;
-    if (!st) warn(`担当職員「${get("staff")}」が職員名簿にありません`);
+    if (!staffKey) warn("担当職員が空欄です（運営指導で提供者を確認できません）");
+    else if (!st) warn(`担当職員「${get("staff")}」が職員名簿にありません`);
+    const bodySplit = splitServices(get("body"), BODY_ITEMS);
+    const lifeSplit = splitServices(get("life"), LIFE_ITEMS);
+    if (bodySplit.detail && bodySplit.items.length === 0) warn("身体介護の文章から具体的な項目を判断できません（例：排泄介助・更衣介助 のように書くとチェック欄に反映されます）");
+    if (lifeSplit.detail && lifeSplit.items.length === 0) warn("生活援助の文章から具体的な項目を判断できません（例：掃除・洗濯）");
     const svKey = get("supervisor").replace(/\s/g, "");
     const sv = svKey ? staff.find((s) => s.id === get("supervisor") || s.name.replace(/\s/g, "") === svKey) : undefined;
     const svAtRaw = get("supervisorCheckedAt");
@@ -505,7 +511,8 @@ export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): P
       no: get("no") || `${userId}-${date.replaceAll("-", "")}-${(start ?? "").replace(":", "")}`,
       date, userId, planCode: normalizeCode(get("planCode")) || billingCode, start: start ?? "", end: end ?? "", minutes,
       bodyMinutes: num(get("bodyMinutes")) ?? undefined, billingCode, units: units ?? 0,
-      body: list(get("body")).filter((x) => x !== "―"), life: list(get("life")).filter((x) => x !== "―"),
+      body: bodySplit.items, life: lifeSplit.items,
+      serviceDetail: [get("detail"), bodySplit.detail, lifeSplit.detail].filter(Boolean).join(" ／ ") || undefined,
       staffId: st?.id ?? get("staff"), helpers: 1,
       vitals: { temp: num(get("temp")), bp: get("bp"), pulse: num(get("pulse")) },
       condition: get("condition") || (reportTo ? "要観察" : "良好"), meal: get("meal") || "―", excretion: get("excretion") || "―",
@@ -517,6 +524,30 @@ export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): P
   });
   if (blank) res.warnings.unshift({ row: 0, message: `未記入の行 ${blank}件は読み飛ばしました（担当職員・サービス内容・特記事項がすべて空欄）` });
   return res;
+}
+
+/* ---------- サービス内容の振り分け ---------- */
+
+/** 文章で書かれたサービス内容から、チェック項目を判断するための言葉 */
+const ITEM_WORDS: [string, RegExp][] = [
+  ["起床介助", /起床|起き上が/], ["就寝介助", /就寝|臥床/], ["おむつ交換", /おむつ|オムツ|パッド/], ["排泄介助", /排泄|排尿|排便|トイレ|ポータブル/],
+  ["食事介助", /食事|朝食|昼食|夕食|摂食|水分補給/], ["入浴介助", /入浴|シャワー|洗身|洗髪/], ["部分浴（足浴）", /足浴|手浴|部分浴/],
+  ["清拭", /清拭/], ["整容", /整容|洗面|洗顔|整髪|歯みがき|歯磨き|口腔|髭/], ["更衣介助", /更衣|着替/], ["体位変換", /体位変換|体位交換|ポジショニング/],
+  ["移乗介助", /移乗/], ["移動介助", /移動|歩行|付き添/], ["服薬確認", /服薬|内服|与薬|お薬|薬の/], ["自立支援見守り", /見守り|自立支援|できる動作/],
+  ["掃除", /掃除|清掃|掃除機|拭き/], ["洗濯", /洗濯/], ["調理", /調理|料理|炊事/], ["配膳・下膳", /配膳|下膳|片付け/], ["買物", /買物|買い物/],
+  ["ベッドメイク", /ベッドメイク|シーツ/], ["衣類整理", /衣類|衣替え/], ["ゴミ出し", /ゴミ|ごみ/],
+];
+
+/**
+ * 「排泄介助・更衣介助」のような項目名の並びはそのまま使い、
+ * 文章で書かれている場合は言葉から項目を判断して、原文も残す。
+ */
+export function splitServices(raw: string, allowed: string[]): { items: string[]; detail: string } {
+  const parts = list(raw).filter((x) => x !== "―");
+  if (parts.length === 0) return { items: [], detail: "" };
+  if (parts.every((p) => allowed.includes(p))) return { items: parts, detail: "" };
+  const items = ITEM_WORDS.filter(([item, re]) => allowed.includes(item) && re.test(raw)).map(([item]) => item);
+  return { items, detail: raw.trim() };
 }
 
 /* ---------- テンプレート ---------- */
