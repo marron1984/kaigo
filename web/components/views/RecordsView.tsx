@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { EntryTemplateCard } from "@/components/EntryTemplateCard";
 import { ImportCard, STEPS } from "@/components/ImportCard";
 import { FilterForm } from "@/components/FilterForm";
 import { ButtonLink, Empty, PageTitle, td, th } from "@/components/ui";
@@ -42,8 +43,9 @@ export function RecordsView({ f }: { f: Filters }) {
         </button>
       </PageTitle>
       {openImport && (
-        <div className="no-print mb-4">
+        <div className="no-print mb-4 space-y-3">
           <ImportCard step={STEPS.find((s) => s.kind === "records")!} title="提供記録を読み込む" />
+          <EntryTemplateCard />
         </div>
       )}
       <FilterForm f={f} action="/records" />

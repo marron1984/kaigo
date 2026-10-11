@@ -132,7 +132,7 @@ export function ImportCard({ step, title }: { step: Step; title?: string }) {
           {res.errors.length + res.warnings.length > 0 && (
             <ul className="max-h-40 overflow-y-auto rounded bg-slate-50 p-2 text-xs">
               {res.errors.map((e, i) => <li key={`e${i}`} className="text-red-700">{e.row}行目：{e.message}</li>)}
-              {res.warnings.map((e, i) => <li key={`w${i}`} className="text-amber-700">{e.row}行目：{e.message}</li>)}
+              {res.warnings.map((e, i) => <li key={`w${i}`} className="text-amber-700">{e.row ? `${e.row}行目：` : ""}{e.message}</li>)}
             </ul>
           )}
           {res.rows.length > 0 && (

@@ -441,6 +441,7 @@ export function parsePlans(input: Table, users: CareUser[]): ParseResult<CarePla
 export const RECORD_FIELDS: Field[] = [
   { key: "no", label: "記録No", aliases: ["記録番号", "No"] },
   { key: "date", label: "提供日", aliases: ["サービス提供日", "日付", "訪問日"], required: true },
+  { key: "weekday", label: "曜日", aliases: [] }, // 記入用ひな形の確認用（取り込みには使わない）
   { key: "userId", label: "利用者ID", aliases: ["利用者番号", "被保険者番号"] },
   { key: "userName", label: "利用者名", aliases: ["氏名"] },
   { key: "start", label: "開始", aliases: ["開始時刻", "開始時間"], required: true },
@@ -466,7 +467,13 @@ export const RECORD_FIELDS: Field[] = [
 ];
 
 export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): ParseResult<CareRecord> {
-  return run(table, RECORD_FIELDS, (get, _row, err, warn) => {
+  let blank = 0;
+  const res = run(table, RECORD_FIELDS, (get, _row, err, warn) => {
+    // 記入用ひな形で、まだ書いていない行（担当・内容・特記事項がすべて空）は読み飛ばす
+    if (!get("staff") && !get("note") && !get("body") && !get("life")) {
+      blank++;
+      return null;
+    }
     const date = dateField(get, "date", "提供日", err, true);
     let userId = z2h(get("userId"));
     const nameKey = get("userName").replace(/\s/g, "");
@@ -508,6 +515,8 @@ export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): P
       supervisorCheckedAt: svAt || null, createdAt: date ? `${date}T${end ?? "00:00"}` : "", history: [],
     };
   });
+  if (blank) res.warnings.unshift({ row: 0, message: `未記入の行 ${blank}件は読み飛ばしました（担当職員・サービス内容・特記事項がすべて空欄）` });
+  return res;
 }
 
 /* ---------- テンプレート ---------- */
@@ -537,7 +546,7 @@ export const TEMPLATES: Record<"users" | "plans" | "staff" | "records", { title:
   records: {
     title: "サービス提供記録",
     fields: RECORD_FIELDS,
-    sample: [["T0001", "2026/10/5", "U001", "山田 花子", "9:00", "10:00", "身体1生活1", "身体1生活1", "25", "", "入浴介助・更衣介助", "掃除・洗濯", "中村 真理", "36.4", "128/76", "72", "良好", "―", "―", "入浴前の体調確認問題なし。浴槽の出入りは手すり使用し見守り。", "", "済", "2026/10/6 9:30", "中村 真理"]],
+    sample: [["T0001", "2026/10/5", "月", "U001", "山田 花子", "9:00", "10:00", "身体1生活1", "身体1生活1", "25", "", "入浴介助・更衣介助", "掃除・洗濯", "中村 真理", "36.4", "128/76", "72", "良好", "―", "―", "入浴前の体調確認問題なし。浴槽の出入りは手すり使用し見守り。", "", "済", "2026/10/6 9:30", "中村 真理"]],
   },
 };
 
