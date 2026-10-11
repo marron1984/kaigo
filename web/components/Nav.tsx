@@ -18,10 +18,11 @@ const LINKS = [
   { href: "/import", label: "取り込み" },
 ];
 
-export function Nav() {
+export function Nav({ authEnabled = false }: { authEnabled?: boolean }) {
   const { ds, ready } = useData();
   const path = usePathname();
   const mock = ds.source === "mock";
+  if (path === "/login") return null;
   return (
     <header className="no-print border-b border-slate-200 bg-white">
       {ready && (
@@ -45,6 +46,9 @@ export function Nav() {
               </Link>
             );
           })}
+          {authEnabled && (
+            <a href="/api/auth/logout" className="rounded px-2.5 py-1.5 text-slate-500 hover:bg-slate-100">ログアウト</a>
+          )}
         </nav>
       </div>
     </header>
