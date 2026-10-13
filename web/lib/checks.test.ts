@@ -140,3 +140,18 @@ describe("定型文の使い回し", () => {
     expect(runChecks(d).filter((f) => f.checkId === "C06")).toHaveLength(3);
   });
 });
+
+describe("顔色・様子と報告先の読み取り", () => {
+  it("普段どおりの記載は状態の変化とみなさない", async () => {
+    const { isChanged } = await import("./checks");
+    for (const c of ["良好", "穏やか", "普段と変わりなし", "やや眠気あり・会話可能", ""]) expect(isChanged(c), c).toBe(false);
+    for (const c of ["要観察", "37.5℃の発熱", "右膝の痛み"]) expect(isChanged(c), c).toBe(true);
+  });
+  it("担当職員が空欄の記録どうしを訪問重複とみなさない", () => {
+    const d = structuredClone(mockDataset());
+    for (const r of d.records) r.staffId = "";
+    const f = runChecks(d);
+    expect(f.some((x) => x.checkId === "C10")).toBe(false);
+    expect(f.filter((x) => x.checkId === "C09")[0].message).toBe("担当職員が記録されていない");
+  });
+});

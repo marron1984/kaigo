@@ -1,3 +1,4 @@
+import { isChanged } from "./checks";
 import type { CareRecord } from "./types";
 
 export const FILTER_KEYS = ["user", "staff", "from", "to", "code", "flag"] as const;
@@ -29,7 +30,7 @@ export function applyFilters(records: CareRecord[], f: Filters, flagged?: Set<st
       (!f.code || r.billingCode === f.code) &&
       (f.flag !== "reported" || r.reported) &&
       (f.flag !== "corrected" || r.history.length > 0) &&
-      (f.flag !== "observe" || r.condition !== "良好") &&
+      (f.flag !== "observe" || isChanged(r.condition)) &&
       (f.flag !== "finding" || !!flagged?.has(r.no)),
   );
 }

@@ -77,12 +77,13 @@ export function runChecks(ds: Pick<Dataset, "records" | "users" | "staff" | "pla
     if (!r.supervisorCheckedBy) rec("C08", "サ責の確認がない");
 
     const st = staffById.get(r.staffId);
-    if (!st) rec("C09", `担当職員（${r.staffId}）が職員名簿にない`);
+    if (!r.staffId) rec("C09", "担当職員が記録されていない");
+    else if (!st) rec("C09", `担当職員（${r.staffId}）が職員名簿にない`);
     else if (r.body.length > 0 && !BODY_QUALIFIED.includes(st.qualification))
       rec("C09", `${st.name}（${st.qualification}）は身体介護の資格要件を満たさない`);
 
     for (const h of r.history) if (!h.reason.trim()) rec("C11", `「${h.field}」の訂正に理由がない`);
-    if (r.condition !== "良好" && !r.reported) rec("C12", "状態に変化があるのに報告先の記録がない");
+    if (isChanged(r.condition) && !r.reported) rec("C12", `状態の変化（${r.condition}）があるのに報告先の記録がない`);
 
     if (!user) rec("C16", `利用者（${r.userId}）が利用者リストにない`);
     else if (!user.certFrom || !user.certTo) rec("C16", "利用者の認定有効期間が登録されていない");
@@ -104,7 +105,7 @@ export function runChecks(ds: Pick<Dataset, "records" | "users" | "staff" | "pla
       if (gap < TWO_HOUR_RULE_MIN) add("C04", "record", s[i].no, `前回訪問（${s[i - 1].no}、${s[i - 1].end}終了）から${gap}分。所要時間の合算が必要`);
     }
   }
-  for (const list of groupBy(ds.records, (r) => `${r.staffId}|${r.date}`).values()) {
+  for (const list of groupBy(ds.records.filter((r) => r.staffId), (r) => `${r.staffId}|${r.date}`).values()) {
     const s = [...list].sort((a, b) => toMin(a.start) - toMin(b.start));
     for (let i = 1; i < s.length; i++)
       if (toMin(s[i].start) < toMin(s[i - 1].end))
@@ -148,6 +149,13 @@ export function runChecks(ds: Pick<Dataset, "records" | "users" | "staff" | "pla
     if (rep?.finalizedAt && rep.finalizedAt.slice(0, 10) < monthRange(month).to) add("C18", "report", rep.id, "月末より前に確定している");
   }
   return out;
+}
+
+/** 顔色・様子の記載が「状態の変化」を表すか（良好・穏やか・普段どおり等は変化なしとみなす） */
+export function isChanged(condition: string): boolean {
+  const c = condition.trim();
+  if (!c || /^(良好|普段どおり|普段通り|普段と変わりなし|変わりなし|変化なし|著変なし|穏やか|安定)$/.test(c)) return false;
+  return /要観察|変化あり|不良|発熱|熱|痛|腫|発赤|むせ|転倒|傾眠|低下|悪化|異常|不穏|嘔吐|下痢|息切れ|浮腫|むくみ/.test(c);
 }
 
 function groupBy<T>(xs: T[], key: (x: T) => string): Map<string, T[]> {

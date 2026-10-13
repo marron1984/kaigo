@@ -98,3 +98,13 @@ describe("サービス内容の文章からの振り分け", () => {
     expect(r.detail).toContain("安否");
   });
 });
+
+describe("報告先の読み取り", () => {
+  it("「なし（○○）」は報告なし", () => {
+    const users = parseUsers(parseCSV(templateCSV("users"))).rows;
+    const head = ["提供日", "利用者ID", "開始", "終了", "算定区分", "担当職員", "特記事項", "報告先"];
+    const t = [head, ["2026/10/5", "U001", "9:00", "10:00", "身体1生活1", "S01", "入浴前の体調確認問題なし。浴槽の出入りは手すりで見守り。", "なし（教材用）"]];
+    const r = parseRecords(t, users, []);
+    expect(r.rows[0]).toMatchObject({ reported: false, reportTo: "", condition: "良好" });
+  });
+});

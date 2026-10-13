@@ -505,7 +505,8 @@ export function parseRecords(table: Table, users: CareUser[], staff: Staff[]): P
     const sv = svKey ? staff.find((s) => s.id === get("supervisor") || s.name.replace(/\s/g, "") === svKey) : undefined;
     const svAtRaw = get("supervisorCheckedAt");
     const svAt = svAtRaw ? (parseDateJP(svAtRaw.split(/[ T]/)[0]) ?? "") + (svAtRaw.match(/\d{1,2}:\d{2}/) ? `T${parseTime(svAtRaw.match(/\d{1,2}:\d{2}/)![0])}` : "T00:00") : "";
-    const reportTo = get("reportTo").replace(/^(なし|無|-|―)$/, "");
+    // 「なし」「なし（○○）」「無し」「-」は報告なしとして扱う
+    const reportTo = /^(なし|無し?|特になし|-|―|ー)/.test(get("reportTo").trim()) ? "" : get("reportTo").trim();
     return {
       // 記録Noがないときは「利用者ID-提供日-開始時刻」で番号を付ける（同じ訪問を2回取り込んでも重複しない）
       no: get("no") || `${userId}-${date.replaceAll("-", "")}-${(start ?? "").replace(":", "")}`,

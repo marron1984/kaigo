@@ -2,6 +2,7 @@
  * 介護報告書（ケアマネへの月次サービス実施状況報告）の下書き作成。
  * 訪問介護計画の目標・サービス内容と、当月のサービス提供記録から組み立てる。
  */
+import { isChanged } from "./checks";
 import { toMin } from "./format";
 import { activePlan, monthRange, plannedSlots } from "./plan";
 import type { CarePlan, CareRecord, CareReport, CareUser } from "./types";
@@ -33,7 +34,7 @@ export function reportFacts(user: CareUser, month: string, plans: CarePlan[], al
     plan,
     records,
     slots: [...map.values()],
-    observed: records.filter((r) => r.condition !== "良好" || r.reported),
+    observed: records.filter((r) => isChanged(r.condition) || r.reported),
     totalMinutes: records.reduce((s, r) => s + r.minutes, 0),
   };
 }
