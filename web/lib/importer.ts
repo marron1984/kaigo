@@ -285,7 +285,8 @@ export function parseRanges(raw: string): { from: string; to: string }[] | null 
   for (const part of s.split(/[,，、/／\s]+/).filter(Boolean)) {
     const m = part.split(/[〜~\-－]/);
     const from = m.length === 2 ? parseTime(m[0]) : null;
-    const to = m.length === 2 ? parseTime(m[1]) : null;
+    // 終わりの時刻は「24:00」（深夜0時まで）も書ける
+    const to = m.length === 2 ? (/^24(:00|時(00分)?)?$/.test(z2h(m[1]).trim()) ? "24:00" : parseTime(m[1])) : null;
     if (!from || !to || from >= to) return null;
     out.push({ from, to });
   }

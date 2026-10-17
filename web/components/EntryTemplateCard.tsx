@@ -5,6 +5,7 @@ import { Card, input } from "@/components/ui";
 import { downloadCSV } from "@/lib/csv";
 import { ENTRY_GUIDE, ENTRY_HEADER, entryRows, sheetName } from "@/lib/entryTemplate";
 import { jpMonth, shiftMonths } from "@/lib/months";
+import { buildSample } from "@/lib/sample";
 import { useData } from "@/lib/store";
 
 /** 記入用ひな形（予定入りCSV・利用者ごとにシートを分けたExcel）を作る */
@@ -84,6 +85,27 @@ export function EntryTemplateCard() {
         <button onClick={excel} className="rounded bg-teal-700 px-4 py-1.5 text-sm font-medium text-white">Excel（利用者ごとにシート）</button>
       </div>
       {msg && <p className="mt-2 text-sm text-slate-600">{msg}</p>}
+
+      <div className="mt-4 border-t border-slate-200 pt-3">
+        <h3 className="text-sm font-bold">記入例（サンプル）</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          架空の利用者6名・2日分を中心に、全項目を埋めた提供記録の見本です。①利用者 → ②職員 → ③訪問介護計画 → ④提供記録 の順に取り込むと、運営指導チェックを通る状態になります。
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2 text-sm">
+          {(
+            [
+              ["①利用者", "userRows", "サンプル_利用者リスト.csv"],
+              ["②職員", "staffRows", "サンプル_職員.csv"],
+              ["③訪問介護計画", "planRows", "サンプル_訪問介護計画.csv"],
+              ["④提供記録", "recordRows", "サンプル_提供記録_記入例.csv"],
+            ] as const
+          ).map(([label, key, file]) => (
+            <button key={key} onClick={() => downloadCSV(file, buildSample()[key])} className="rounded border border-slate-300 px-3 py-1.5 hover:bg-slate-50">
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
     </Card>
   );
 }

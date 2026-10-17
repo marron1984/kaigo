@@ -66,6 +66,7 @@ describe("テンプレートの取り込み", () => {
     expect(parseRanges("9:00〜12:00、14:00〜18:00")).toEqual([{ from: "09:00", to: "12:00" }, { from: "14:00", to: "18:00" }]);
     expect(parseRanges("○")).toEqual([{ from: "07:00", to: "20:00" }]);
     expect(parseRanges("12:00-9:00")).toBeNull();
+    expect(parseRanges("00:00-06:30、21:30-24:00")).toEqual([{ from: "00:00", to: "06:30" }, { from: "21:30", to: "24:00" }]);
   });
   it("生活保護の H 番号は注意にしない", () => {
     expect(parseUsers([["氏名", "被保険者番号"], ["テスト", "H111111111"]]).warnings.some((w) => w.message.includes("被保険者番号"))).toBe(false);
